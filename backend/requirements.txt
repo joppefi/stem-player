@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+demucs
+torch
+torchaudio
+python-multipart
+websockets
