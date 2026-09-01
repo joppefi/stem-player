@@ -1,4 +1,5 @@
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, UploadFile
@@ -6,14 +7,20 @@ from fastapi.responses import FileResponse
 
 from app import jobs
 from app.models import Job
+from app.paths import OUTPUTS_DIR, UPLOADS_DIR
 from app.pubsub import publish_update
 from app.services.demucs import separate as run_separation
 
 router = APIRouter()
 
-DATA_DIR = Path(__file__).resolve().parents[2] / "data"
-UPLOADS_DIR = DATA_DIR / "uploads"
-OUTPUTS_DIR = DATA_DIR / "outputs"
+# A single worker serializes Demucs runs (one model instance at a time on typical
+# local hardware) and gives us a handle to cancel queued-but-not-started jobs on shutdown.
+_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="demucs")
+
+
+def shutdown_executor() -> None:
+    _executor.shutdown(wait=False, cancel_futures=True)
+
 
 ALLOWED_CONTENT_TYPES = {
     "audio/mpeg",
@@ -66,7 +73,7 @@ async def create_separation(file: UploadFile, model: str = DEFAULT_MODEL):
         except Exception as exc:  # noqa: BLE001
             loop.call_soon_threadsafe(_on_error, job.id, str(exc))
 
-    loop.run_in_executor(None, run)
+    loop.run_in_executor(_executor, run)
 
     return {"job_id": job.id}
 

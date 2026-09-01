@@ -1,12 +1,24 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.cleanup import cleanup_old_data
+from app.paths import DATA_DIR
 from app.routers import separate, ws
+from app.routers.separate import shutdown_executor
 
-app = FastAPI(title="Stem Player")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    cleanup_old_data(DATA_DIR)
+    yield
+    shutdown_executor()
+
+
+app = FastAPI(title="Stem Player", lifespan=lifespan)
 
 app.include_router(separate.router)
 app.include_router(ws.router)
