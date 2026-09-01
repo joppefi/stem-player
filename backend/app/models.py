@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 class JobStatus(str, Enum):
     QUEUED = "queued"
+    DOWNLOADING = "downloading"
     PROCESSING = "processing"
     DONE = "done"
     ERROR = "error"

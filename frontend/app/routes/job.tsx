@@ -111,7 +111,11 @@ export default function JobPage() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center gap-6 p-6">
       <h1 className="text-2xl font-semibold">
-        {job.status === "queued" ? "Queued…" : "Separating…"}
+        {job.status === "queued"
+          ? "Queued…"
+          : job.status === "downloading"
+            ? "Downloading…"
+            : "Separating…"}
       </h1>
       <div className="w-full max-w-md">
         <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden">

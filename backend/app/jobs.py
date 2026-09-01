@@ -29,6 +29,10 @@ def update_job(job_id: str, **fields) -> Job | None:
         return updated
 
 
+def set_downloading(job_id: str, progress: float) -> None:
+    update_job(job_id, status=JobStatus.DOWNLOADING, progress=progress)
+
+
 def set_progress(job_id: str, progress: float) -> None:
     update_job(job_id, status=JobStatus.PROCESSING, progress=progress)
 
