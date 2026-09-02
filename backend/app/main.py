@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -6,13 +7,22 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.cleanup import cleanup_old_data
-from app.paths import DATA_DIR
+from app.paths import DATA_DIR, OUTPUTS_DIR, UPLOADS_DIR
 from app.routers import separate, ws
 from app.routers.separate import shutdown_executor
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info(
+        "Data directory: %s (uploads: %s, outputs: %s)", DATA_DIR, UPLOADS_DIR, OUTPUTS_DIR
+    )
     cleanup_old_data(DATA_DIR)
     yield
     shutdown_executor()

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import re
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -12,6 +13,8 @@ from app.paths import OUTPUTS_DIR, UPLOADS_DIR
 from app.pubsub import publish_update
 from app.services.demucs import separate as run_separation
 from app.services.youtube import DownloadError, download_audio
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -73,6 +76,12 @@ async def create_separation(
     if file is not None:
         UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
         input_path = UPLOADS_DIR / f"{job.id}{Path(file.filename or '').suffix}"
+        logger.info(
+            "Job %s: saving upload to %s, stems will be written to %s",
+            job.id,
+            input_path,
+            output_dir,
+        )
 
         size = 0
         with input_path.open("wb") as out:
@@ -96,6 +105,13 @@ async def create_separation(
 
     else:
         download_dir = UPLOADS_DIR / job.id
+        logger.info(
+            "Job %s: downloading %s to %s, stems will be written to %s",
+            job.id,
+            youtube_url,
+            download_dir,
+            output_dir,
+        )
 
         def run() -> None:
             try:
