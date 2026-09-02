@@ -5,23 +5,36 @@ interface WaveformProps {
   stemName: string;
   progress: number; // 0..1
   onSeek: (ratio: number) => void;
+  onDoubleClick?: (ratio: number) => void;
   disabled?: boolean;
 }
 
 const IMAGE_WIDTH = 600;
 const IMAGE_HEIGHT = 64;
 
-export default function Waveform({ jobId, stemName, progress, onSeek, disabled }: WaveformProps) {
+export default function Waveform({
+  jobId,
+  stemName,
+  progress,
+  onSeek,
+  onDoubleClick,
+  disabled,
+}: WaveformProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const src = `/api/jobs/${jobId}/stems/${stemName}/waveform?width=${IMAGE_WIDTH}&height=${IMAGE_HEIGHT}`;
   const clampedProgress = Math.min(1, Math.max(0, progress || 0));
 
-  function seekFromPointer(e: React.PointerEvent<HTMLDivElement>) {
-    if (disabled || !containerRef.current) return;
+  function ratioFromClientX(clientX: number): number | null {
+    if (!containerRef.current) return null;
     const rect = containerRef.current.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-    onSeek(ratio);
+    return Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+  }
+
+  function seekFromPointer(e: React.PointerEvent<HTMLDivElement>) {
+    if (disabled) return;
+    const ratio = ratioFromClientX(e.clientX);
+    if (ratio !== null) onSeek(ratio);
   }
 
   return (
@@ -38,6 +51,11 @@ export default function Waveform({ jobId, stemName, progress, onSeek, disabled }
       onPointerMove={(e) => {
         if (e.buttons !== 1) return;
         seekFromPointer(e);
+      }}
+      onDoubleClick={(e) => {
+        if (disabled || !onDoubleClick) return;
+        const ratio = ratioFromClientX(e.clientX);
+        if (ratio !== null) onDoubleClick(ratio);
       }}
     >
       {/* Upcoming portion: dimmed */}
