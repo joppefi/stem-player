@@ -66,6 +66,17 @@ def _find_existing_stems(video_id: str) -> dict[str, str] | None:
     return None
 
 
+def _find_original_file(job_dir: Path) -> Path | None:
+    """The one file in a job folder that isn't a stem or a generated JSON sidecar."""
+    for entry in job_dir.iterdir():
+        if not entry.is_file() or entry.name.startswith("."):
+            continue
+        if entry.stem in STEM_NAMES or entry.suffix == ".json":
+            continue
+        return entry
+    return None
+
+
 def _run_analysis(input_path: Path, job_dir: Path, job_id: str) -> str | None:
     """Best-effort: analysis failure shouldn't sink an otherwise-successful separation."""
     analysis_path = job_dir / "analysis.json"
@@ -236,6 +247,22 @@ def get_analysis(job_id: str) -> FileResponse:
     job = jobs.get_job(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
-    if job.analysis_path is None:
-        raise HTTPException(status_code=404, detail="Analysis not available")
-    return FileResponse(job.analysis_path, media_type="application/json")
+
+    if job.analysis_path is not None:
+        return FileResponse(job.analysis_path, media_type="application/json")
+
+    if job.stem_paths is None:
+        raise HTTPException(status_code=404, detail="Stems not ready")
+
+    job_dir = Path(next(iter(job.stem_paths.values()))).parent
+    original = _find_original_file(job_dir)
+    if original is None:
+        raise HTTPException(status_code=404, detail="Original audio not found for analysis")
+
+    logger.info("Job %s: analysis missing, generating on request", job_id)
+    analysis_path = _run_analysis(original, job_dir, job_id)
+    if analysis_path is None:
+        raise HTTPException(status_code=500, detail="Analysis failed")
+
+    jobs.update_job(job_id, analysis_path=analysis_path)
+    return FileResponse(analysis_path, media_type="application/json")
