@@ -1,7 +1,7 @@
-import { useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router";
 import type { Route } from "./+types/home";
-import { MODELS } from "../types";
+import { MODELS, type Job, type JobStatus } from "../types";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -19,7 +19,40 @@ export default function Home() {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    async function fetchJobs() {
+      try {
+        const res = await fetch("/api/jobs");
+        if (!res.ok || cancelled) return;
+        const data: Job[] = await res.json();
+        if (cancelled) return;
+        setJobs(data);
+        // Keep polling only while something is actually in flight, so the list
+        // stays live for active jobs without hitting the backend forever.
+        const hasActiveJob = data.some((job) =>
+          (["queued", "downloading", "processing"] as JobStatus[]).includes(job.status),
+        );
+        if (hasActiveJob) {
+          timeoutId = setTimeout(fetchJobs, 3000);
+        }
+      } catch {
+        // ignore; next visit to this page will retry
+      }
+    }
+
+    void fetchJobs();
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, []);
 
   async function submit(formData: FormData) {
     setError(null);
@@ -164,6 +197,49 @@ export default function Home() {
 
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
       </div>
+
+      {jobs.length > 0 && (
+        <div className="w-full max-w-md flex flex-col gap-2">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-400">Jobs</h2>
+          <ul className="flex flex-col gap-1.5">
+            {jobs.map((job) => (
+              <li key={job.id}>
+                <Link
+                  to={`/jobs/${job.id}`}
+                  className="flex items-center gap-3 rounded-md border border-gray-200 dark:border-gray-800 px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-900"
+                >
+                  <span className="truncate flex-1">{job.title ?? job.id}</span>
+                  <StatusLabel status={job.status} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </main>
+  );
+}
+
+const STATUS_LABELS: Record<JobStatus, string> = {
+  queued: "Queued",
+  downloading: "Downloading",
+  processing: "Processing",
+  done: "Done",
+  error: "Error",
+};
+
+const STATUS_COLORS: Record<JobStatus, string> = {
+  queued: "text-gray-500 dark:text-gray-400",
+  downloading: "text-blue-600 dark:text-blue-400",
+  processing: "text-blue-600 dark:text-blue-400",
+  done: "text-green-600 dark:text-green-400",
+  error: "text-red-600 dark:text-red-400",
+};
+
+function StatusLabel({ status }: { status: JobStatus }) {
+  return (
+    <span className={`shrink-0 text-xs font-medium ${STATUS_COLORS[status]}`}>
+      {STATUS_LABELS[status]}
+    </span>
   );
 }
