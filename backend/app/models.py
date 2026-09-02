@@ -1,6 +1,7 @@
+import time
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class JobStatus(str, Enum):
@@ -19,3 +20,4 @@ class Job(BaseModel):
     stem_paths: dict[str, str] | None = None
     analysis_path: str | None = None
     error: str | None = None
+    created_at: float = Field(default_factory=time.time)

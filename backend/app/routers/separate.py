@@ -221,6 +221,11 @@ def _on_error(job_id: str, error: str) -> None:
     publish_update(job_id, jobs.get_job(job_id))
 
 
+@router.get("/api/jobs", response_model=list[Job])
+def list_jobs() -> list[Job]:
+    return jobs.list_jobs()
+
+
 @router.get("/api/jobs/{job_id}", response_model=Job)
 def get_job(job_id: str) -> Job:
     job = jobs.get_job(job_id)

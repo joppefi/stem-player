@@ -19,6 +19,12 @@ def get_job(job_id: str) -> Job | None:
         return _jobs.get(job_id)
 
 
+def list_jobs() -> list[Job]:
+    with _lock:
+        jobs_snapshot = list(_jobs.values())
+    return sorted(jobs_snapshot, key=lambda job: job.created_at, reverse=True)
+
+
 def update_job(job_id: str, **fields) -> Job | None:
     with _lock:
         job = _jobs.get(job_id)
