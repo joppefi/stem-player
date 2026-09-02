@@ -4,6 +4,7 @@ export interface Job {
   id: string;
   status: JobStatus;
   progress: number;
+  title: string | null;
   stem_paths: Record<string, string> | null;
   error: string | null;
 }

@@ -94,7 +94,10 @@ export default function JobPage() {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center gap-8 p-6">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold">Stems ready</h1>
+          {job.title && (
+            <h1 className="text-2xl font-semibold break-words max-w-xl">{job.title}</h1>
+          )}
+          <p className="text-sm text-gray-500 dark:text-gray-400">Stems ready</p>
           <Link to="/" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
             Separate another song
           </Link>
@@ -109,13 +112,20 @@ export default function JobPage() {
   const percent = Math.round((job.progress ?? 0) * 100);
   return (
     <main className="min-h-screen flex flex-col items-center justify-center gap-6 p-6">
-      <h1 className="text-2xl font-semibold">
-        {job.status === "queued"
-          ? "Queued…"
-          : job.status === "downloading"
-            ? "Downloading…"
-            : "Separating…"}
-      </h1>
+      <div className="text-center">
+        {job.title && (
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1 break-words max-w-md">
+            {job.title}
+          </p>
+        )}
+        <h1 className="text-2xl font-semibold">
+          {job.status === "queued"
+            ? "Queued…"
+            : job.status === "downloading"
+              ? "Downloading…"
+              : "Separating…"}
+        </h1>
+      </div>
       <div className="w-full max-w-md">
         <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden">
           <div
