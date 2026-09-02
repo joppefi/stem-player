@@ -22,6 +22,26 @@ export default function JobPage() {
       `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws/jobs/${jobId}`,
     );
 
+    function stopAll() {
+      if (pollHandle) {
+        clearInterval(pollHandle);
+        pollHandle = null;
+      }
+      if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+        socket.close(1000);
+      }
+    }
+
+    function applyUpdate(data: Job) {
+      if (cancelled) return;
+      setJob(data);
+      // Once separation is finished (or failed), the player has everything it
+      // needs — stop polling/WS traffic instead of continuing to hit the backend.
+      if (data.status === "done" || data.status === "error") {
+        stopAll();
+      }
+    }
+
     function startPolling() {
       if (pollHandle) return;
       setConnectionError(true);
@@ -29,12 +49,7 @@ export default function JobPage() {
         try {
           const res = await fetch(`/api/jobs/${jobId}`);
           if (!res.ok) return;
-          const data: Job = await res.json();
-          if (cancelled) return;
-          setJob(data);
-          if (data.status === "done" || data.status === "error") {
-            if (pollHandle) clearInterval(pollHandle);
-          }
+          applyUpdate(await res.json());
         } catch {
           // keep polling
         }
@@ -42,9 +57,7 @@ export default function JobPage() {
     }
 
     socket.onmessage = (event) => {
-      if (cancelled) return;
-      const data: Job = JSON.parse(event.data);
-      setJob(data);
+      applyUpdate(JSON.parse(event.data));
     };
     socket.onerror = () => {
       startPolling();
@@ -57,8 +70,7 @@ export default function JobPage() {
 
     return () => {
       cancelled = true;
-      socket.close();
-      if (pollHandle) clearInterval(pollHandle);
+      stopAll();
     };
   }, [jobId]);
 
