@@ -37,8 +37,16 @@ def set_progress(job_id: str, progress: float) -> None:
     update_job(job_id, status=JobStatus.PROCESSING, progress=progress)
 
 
-def set_done(job_id: str, stem_paths: dict[str, str]) -> None:
-    update_job(job_id, status=JobStatus.DONE, progress=1.0, stem_paths=stem_paths)
+def set_done(
+    job_id: str, stem_paths: dict[str, str], analysis_path: str | None = None
+) -> None:
+    update_job(
+        job_id,
+        status=JobStatus.DONE,
+        progress=1.0,
+        stem_paths=stem_paths,
+        analysis_path=analysis_path,
+    )
 
 
 def set_error(job_id: str, error: str) -> None:

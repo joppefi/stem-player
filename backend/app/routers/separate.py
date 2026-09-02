@@ -12,6 +12,7 @@ from app.models import Job
 from app.naming import sanitize_name, unique_dir
 from app.paths import DATA_DIR
 from app.pubsub import publish_update
+from app.services.analysis import save_analysis
 from app.services.demucs import separate as run_separation
 from app.services.waveform import generate_waveform_png
 from app.services.youtube import DownloadError, download_audio, probe
@@ -65,6 +66,17 @@ def _find_existing_stems(video_id: str) -> dict[str, str] | None:
     return None
 
 
+def _run_analysis(input_path: Path, job_dir: Path, job_id: str) -> str | None:
+    """Best-effort: analysis failure shouldn't sink an otherwise-successful separation."""
+    analysis_path = job_dir / "analysis.json"
+    try:
+        save_analysis(input_path, analysis_path)
+    except Exception:  # noqa: BLE001
+        logger.warning("Job %s: analysis failed", job_id, exc_info=True)
+        return None
+    return str(analysis_path)
+
+
 @router.post("/api/separate", status_code=202)
 async def create_separation(
     file: UploadFile | None = None,
@@ -114,8 +126,12 @@ async def create_separation(
         def run() -> None:
             try:
                 stem_paths = run_separation(input_path, job_dir, model, progress_cb)
+                analysis_path = _run_analysis(input_path, job_dir, job.id)
                 loop.call_soon_threadsafe(
-                    _on_done, job.id, {name: str(path) for name, path in stem_paths.items()}
+                    _on_done,
+                    job.id,
+                    {name: str(path) for name, path in stem_paths.items()},
+                    analysis_path,
                 )
             except Exception as exc:  # noqa: BLE001
                 loop.call_soon_threadsafe(_on_error, job.id, str(exc))
@@ -124,12 +140,18 @@ async def create_separation(
         video_id = youtube_match.group("video_id")
         existing_stems = _find_existing_stems(video_id)
         if existing_stems is not None:
+            existing_job_dir = Path(next(iter(existing_stems.values()))).parent
+            existing_analysis = existing_job_dir / "analysis.json"
             logger.info(
                 "Job %s: video %s already downloaded and separated, reusing existing stems",
                 job.id,
                 video_id,
             )
-            jobs.set_done(job.id, existing_stems)
+            jobs.set_done(
+                job.id,
+                existing_stems,
+                str(existing_analysis) if existing_analysis.is_file() else None,
+            )
             return {"job_id": job.id}
 
         def run() -> None:
@@ -141,8 +163,12 @@ async def create_separation(
                 logger.info("Job %s: downloading %s to %s", job.id, youtube_url, job_dir)
                 input_path = download_audio(youtube_url, job_dir, download_progress_cb)
                 stem_paths = run_separation(input_path, job_dir, model, progress_cb)
+                analysis_path = _run_analysis(input_path, job_dir, job.id)
                 loop.call_soon_threadsafe(
-                    _on_done, job.id, {name: str(path) for name, path in stem_paths.items()}
+                    _on_done,
+                    job.id,
+                    {name: str(path) for name, path in stem_paths.items()},
+                    analysis_path,
                 )
             except DownloadError as exc:
                 loop.call_soon_threadsafe(_on_error, job.id, f"Download failed: {exc}")
@@ -164,8 +190,10 @@ def _on_progress(job_id: str, progress: float) -> None:
     publish_update(job_id, jobs.get_job(job_id))
 
 
-def _on_done(job_id: str, stem_paths: dict[str, str]) -> None:
-    jobs.set_done(job_id, stem_paths)
+def _on_done(
+    job_id: str, stem_paths: dict[str, str], analysis_path: str | None = None
+) -> None:
+    jobs.set_done(job_id, stem_paths, analysis_path)
     publish_update(job_id, jobs.get_job(job_id))
 
 
@@ -201,3 +229,13 @@ def get_waveform(job_id: str, stem_name: str, width: int = 600, height: int = 80
         raise HTTPException(status_code=404, detail="Stem not ready")
     png_bytes = generate_waveform_png(Path(job.stem_paths[stem_name]), width, height)
     return Response(content=png_bytes, media_type="image/png")
+
+
+@router.get("/api/jobs/{job_id}/analysis")
+def get_analysis(job_id: str) -> FileResponse:
+    job = jobs.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.analysis_path is None:
+        raise HTTPException(status_code=404, detail="Analysis not available")
+    return FileResponse(job.analysis_path, media_type="application/json")
