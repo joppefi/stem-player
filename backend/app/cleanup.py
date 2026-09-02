@@ -6,19 +6,15 @@ TTL_SECONDS = 24 * 60 * 60
 
 
 def cleanup_old_data(data_dir: Path, ttl_seconds: int = TTL_SECONDS) -> None:
+    if not data_dir.exists():
+        return
     now = time.time()
-    for subdir_name in ("uploads", "outputs"):
-        subdir = data_dir / subdir_name
-        if not subdir.exists():
+    for entry in data_dir.iterdir():
+        if not entry.is_dir():
             continue
-        for entry in subdir.iterdir():
-            try:
-                age = now - entry.stat().st_mtime
-            except FileNotFoundError:
-                continue
-            if age <= ttl_seconds:
-                continue
-            if entry.is_dir():
-                shutil.rmtree(entry, ignore_errors=True)
-            else:
-                entry.unlink(missing_ok=True)
+        try:
+            age = now - entry.stat().st_mtime
+        except FileNotFoundError:
+            continue
+        if age > ttl_seconds:
+            shutil.rmtree(entry, ignore_errors=True)

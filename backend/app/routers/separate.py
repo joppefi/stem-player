@@ -9,10 +9,11 @@ from fastapi.responses import FileResponse
 
 from app import jobs
 from app.models import Job
-from app.paths import OUTPUTS_DIR, UPLOADS_DIR
+from app.naming import sanitize_name, unique_dir
+from app.paths import DATA_DIR
 from app.pubsub import publish_update
 from app.services.demucs import separate as run_separation
-from app.services.youtube import DownloadError, download_audio
+from app.services.youtube import DownloadError, download_audio, probe
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,6 @@ async def create_separation(
         raise HTTPException(status_code=400, detail="Not a valid YouTube URL")
 
     job = jobs.create_job()
-    output_dir = OUTPUTS_DIR / job.id
     loop = asyncio.get_running_loop()
 
     def progress_cb(progress: float) -> None:
@@ -74,14 +74,12 @@ async def create_separation(
         loop.call_soon_threadsafe(_on_downloading, job.id, progress)
 
     if file is not None:
-        UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
-        input_path = UPLOADS_DIR / f"{job.id}{Path(file.filename or '').suffix}"
-        logger.info(
-            "Job %s: saving upload to %s, stems will be written to %s",
-            job.id,
-            input_path,
-            output_dir,
-        )
+        original_stem = sanitize_name(Path(file.filename or "audio").stem)
+        suffix = Path(file.filename or "").suffix or ".bin"
+        job_dir = unique_dir(DATA_DIR, f"{original_stem} ({job.id})")
+        job_dir.mkdir(parents=True, exist_ok=True)
+        input_path = job_dir / f"{original_stem}{suffix}"
+        logger.info("Job %s: saving upload to %s", job.id, input_path)
 
         size = 0
         with input_path.open("wb") as out:
@@ -96,7 +94,7 @@ async def create_separation(
 
         def run() -> None:
             try:
-                stem_paths = run_separation(input_path, output_dir, model, progress_cb)
+                stem_paths = run_separation(input_path, job_dir, model, progress_cb)
                 loop.call_soon_threadsafe(
                     _on_done, job.id, {name: str(path) for name, path in stem_paths.items()}
                 )
@@ -104,19 +102,16 @@ async def create_separation(
                 loop.call_soon_threadsafe(_on_error, job.id, str(exc))
 
     else:
-        download_dir = UPLOADS_DIR / job.id
-        logger.info(
-            "Job %s: downloading %s to %s, stems will be written to %s",
-            job.id,
-            youtube_url,
-            download_dir,
-            output_dir,
-        )
 
         def run() -> None:
             try:
-                input_path = download_audio(youtube_url, download_dir, download_progress_cb)
-                stem_paths = run_separation(input_path, output_dir, model, progress_cb)
+                info = probe(youtube_url)
+                title = sanitize_name(info.get("title") or "video")
+                video_id = info.get("id") or job.id
+                job_dir = unique_dir(DATA_DIR, f"{title} ({video_id})")
+                logger.info("Job %s: downloading %s to %s", job.id, youtube_url, job_dir)
+                input_path = download_audio(youtube_url, job_dir, download_progress_cb)
+                stem_paths = run_separation(input_path, job_dir, model, progress_cb)
                 loop.call_soon_threadsafe(
                     _on_done, job.id, {name: str(path) for name, path in stem_paths.items()}
                 )

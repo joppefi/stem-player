@@ -13,6 +13,28 @@ class DownloadError(Exception):
     pass
 
 
+def probe(url: str) -> dict:
+    """Fetch video metadata (title, id, duration) without downloading."""
+    opts = {"quiet": True, "no_warnings": True, "noplaylist": True}
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+    except yt_dlp.utils.DownloadError as exc:
+        logger.warning("Probe failed: %s (%s)", url, exc)
+        raise DownloadError(str(exc)) from exc
+
+    if info is None:
+        raise DownloadError("Could not read video info")
+
+    duration = info.get("duration")
+    if duration and duration > MAX_DURATION_SECONDS:
+        raise DownloadError(
+            f"Video is too long ({duration // 60} min); max is {MAX_DURATION_SECONDS // 60} min"
+        )
+
+    return info
+
+
 def download_audio(
     url: str,
     output_dir: Path,
@@ -20,20 +42,6 @@ def download_audio(
 ) -> Path:
     logger.info("Download started: %s", url)
     output_dir.mkdir(parents=True, exist_ok=True)
-
-    probe_opts = {"quiet": True, "no_warnings": True, "noplaylist": True}
-    try:
-        with yt_dlp.YoutubeDL(probe_opts) as probe:
-            info = probe.extract_info(url, download=False)
-    except yt_dlp.utils.DownloadError as exc:
-        logger.warning("Download failed: %s (%s)", url, exc)
-        raise DownloadError(str(exc)) from exc
-
-    duration = info.get("duration") if info else None
-    if duration and duration > MAX_DURATION_SECONDS:
-        raise DownloadError(
-            f"Video is too long ({duration // 60} min); max is {MAX_DURATION_SECONDS // 60} min"
-        )
 
     def hook(d: dict) -> None:
         if d.get("status") != "downloading":
