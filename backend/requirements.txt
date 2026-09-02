@@ -7,3 +7,5 @@ torchaudio
 python-multipart
 websockets
 yt-dlp
+librosa
+matplotlib

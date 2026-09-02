@@ -12,6 +12,8 @@ dependencies = [
     "python-multipart",
     "websockets",
     "yt-dlp",
+    "librosa",
+    "matplotlib",
 ]
 
 [tool.setuptools.packages.find]

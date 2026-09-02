@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from fastapi import APIRouter, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from app import jobs
 from app.models import Job
@@ -13,6 +13,7 @@ from app.naming import sanitize_name, unique_dir
 from app.paths import DATA_DIR
 from app.pubsub import publish_update
 from app.services.demucs import separate as run_separation
+from app.services.waveform import generate_waveform_png
 from app.services.youtube import DownloadError, download_audio, probe
 
 logger = logging.getLogger(__name__)
@@ -189,3 +190,14 @@ def get_stem(job_id: str, stem_name: str) -> FileResponse:
     if job.stem_paths is None or stem_name not in job.stem_paths:
         raise HTTPException(status_code=404, detail="Stem not ready")
     return FileResponse(job.stem_paths[stem_name], media_type="audio/wav")
+
+
+@router.get("/api/jobs/{job_id}/stems/{stem_name}/waveform")
+def get_waveform(job_id: str, stem_name: str, width: int = 600, height: int = 80) -> Response:
+    job = jobs.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.stem_paths is None or stem_name not in job.stem_paths:
+        raise HTTPException(status_code=404, detail="Stem not ready")
+    png_bytes = generate_waveform_png(Path(job.stem_paths[stem_name]), width, height)
+    return Response(content=png_bytes, media_type="image/png")

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as Tone from "tone";
 import { STEM_NAMES } from "../types";
+import Waveform from "./Waveform";
 
 interface StemPlayerProps {
   jobId: string;
@@ -198,11 +199,18 @@ export default function StemPlayer({ jobId, stemPaths }: StemPlayerProps) {
             >
               {muted[name] ? "Unmute" : "Mute"}
             </button>
-            <span className="text-sm capitalize">{name}</span>
+            <span className="text-sm capitalize w-14 shrink-0">{name}</span>
+            <Waveform
+              jobId={jobId}
+              stemName={name}
+              progress={duration > 0 ? position / duration : 0}
+              onSeek={(ratio) => handleSeek(ratio * duration)}
+              disabled={!ready}
+            />
             <a
               href={`/api/jobs/${jobId}/stems/${name}`}
               download
-              className="ml-auto text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              className="shrink-0 text-xs text-blue-600 dark:text-blue-400 hover:underline"
             >
               Download
             </a>
