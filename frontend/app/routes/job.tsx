@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import type { Route } from "./+types/job";
-import { STEM_NAMES, type Job } from "../types";
+import StemPlayer from "../components/StemPlayer";
+import type { Job } from "../types";
 
 export function meta({}: Route.MetaArgs) {
   return [{ title: "Separating… — Stem Player" }];
@@ -86,22 +87,8 @@ export default function JobPage() {
             Separate another song
           </Link>
         </div>
-        <div className="w-full max-w-xl flex flex-col gap-5">
-          {STEM_NAMES.filter((name) => job.stem_paths?.[name]).map((name) => (
-            <div key={name} className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium capitalize">{name}</span>
-                <a
-                  href={`/api/jobs/${jobId}/stems/${name}`}
-                  download
-                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                >
-                  Download
-                </a>
-              </div>
-              <audio controls className="w-full" src={`/api/jobs/${jobId}/stems/${name}`} />
-            </div>
-          ))}
+        <div className="w-full max-w-xl">
+          <StemPlayer jobId={jobId} stemPaths={job.stem_paths} />
         </div>
       </main>
     );
