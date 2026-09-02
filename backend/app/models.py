@@ -15,6 +15,7 @@ class Job(BaseModel):
     id: str
     status: JobStatus = JobStatus.QUEUED
     progress: float = 0.0
+    title: str | None = None
     stem_paths: dict[str, str] | None = None
     analysis_path: str | None = None
     error: str | None = None

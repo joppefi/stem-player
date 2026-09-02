@@ -121,6 +121,7 @@ async def create_separation(
         job_dir = unique_dir(DATA_DIR, f"{original_stem} ({job.id})")
         job_dir.mkdir(parents=True, exist_ok=True)
         input_path = job_dir / f"{original_stem}{suffix}"
+        jobs.update_job(job.id, title=job_dir.name)
         logger.info("Job %s: saving upload to %s", job.id, input_path)
 
         size = 0
@@ -158,6 +159,7 @@ async def create_separation(
                 job.id,
                 video_id,
             )
+            jobs.update_job(job.id, title=existing_job_dir.name)
             jobs.set_done(
                 job.id,
                 existing_stems,
@@ -171,6 +173,7 @@ async def create_separation(
                 title = sanitize_name(info.get("title") or "video")
                 video_id = info.get("id") or job.id
                 job_dir = unique_dir(DATA_DIR, f"{title} ({video_id})")
+                loop.call_soon_threadsafe(_on_title, job.id, job_dir.name)
                 logger.info("Job %s: downloading %s to %s", job.id, youtube_url, job_dir)
                 input_path = download_audio(youtube_url, job_dir, download_progress_cb)
                 stem_paths = run_separation(input_path, job_dir, model, progress_cb)
@@ -189,6 +192,11 @@ async def create_separation(
     loop.run_in_executor(_executor, run)
 
     return {"job_id": job.id}
+
+
+def _on_title(job_id: str, title: str) -> None:
+    jobs.update_job(job_id, title=title)
+    publish_update(job_id, jobs.get_job(job_id))
 
 
 def _on_downloading(job_id: str, progress: float) -> None:
@@ -218,6 +226,9 @@ def get_job(job_id: str) -> Job:
     job = jobs.get_job(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
+    if job.title is None and job.stem_paths:
+        job_dir = Path(next(iter(job.stem_paths.values()))).parent
+        job = jobs.update_job(job_id, title=job_dir.name) or job
     return job
 
 
