@@ -28,6 +28,7 @@ export default function StemPlayer({ jobId, stemPaths }: StemPlayerProps) {
   const [duration, setDuration] = useState(0);
   const [position, setPosition] = useState(0);
   const [muted, setMuted] = useState<Record<string, boolean>>({});
+  const [cursor, setCursor] = useState<number | null>(null);
 
   // Create/load one Tone.Player per stem, synced to the shared Transport.
   useEffect(() => {
@@ -205,6 +206,8 @@ export default function StemPlayer({ jobId, stemPaths }: StemPlayerProps) {
               stemName={name}
               progress={duration > 0 ? position / duration : 0}
               onSeek={(ratio) => handleSeek(ratio * duration)}
+              onDoubleClick={(ratio) => setCursor(ratio)}
+              cursor={cursor}
               disabled={!ready}
             />
             <a

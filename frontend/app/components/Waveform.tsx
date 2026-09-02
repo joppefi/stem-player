@@ -6,6 +6,7 @@ interface WaveformProps {
   progress: number; // 0..1
   onSeek: (ratio: number) => void;
   onDoubleClick?: (ratio: number) => void;
+  cursor?: number | null; // 0..1, marker position independent of playback progress
   disabled?: boolean;
 }
 
@@ -18,6 +19,7 @@ export default function Waveform({
   progress,
   onSeek,
   onDoubleClick,
+  cursor,
   disabled,
 }: WaveformProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -73,6 +75,13 @@ export default function Waveform({
         className="absolute inset-0 w-full h-full object-fill pointer-events-none select-none"
         style={{ clipPath: `inset(0 ${(1 - clampedProgress) * 100}% 0 0)` }}
       />
+      {/* Cursor marker: independent of playback progress (e.g. set via double-click) */}
+      {cursor !== null && cursor !== undefined && (
+        <div
+          className="absolute inset-y-0 w-0.5 bg-amber-500 pointer-events-none"
+          style={{ left: `${Math.min(1, Math.max(0, cursor)) * 100}%` }}
+        />
+      )}
     </div>
   );
 }
