@@ -42,9 +42,26 @@ ALLOWED_CONTENT_TYPES = {
 }
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # ~15 min of typical compressed audio
 DEFAULT_MODEL = "htdemucs"
+STEM_NAMES = ("vocals", "drums", "bass", "other")
 YOUTUBE_URL_RE = re.compile(
-    r"^https?://(www\.)?(youtube\.com/(watch\?v=|shorts/)|youtu\.be/)", re.IGNORECASE
+    r"^https?://(?:www\.)?(?:youtube\.com/(?:watch\?v=|shorts/)|youtu\.be/)"
+    r"(?P<video_id>[A-Za-z0-9_-]{11})",
+    re.IGNORECASE,
 )
+
+
+def _find_existing_stems(video_id: str) -> dict[str, str] | None:
+    """Look for a folder already named '... (<video_id>)' with all stems present."""
+    if not DATA_DIR.exists():
+        return None
+    suffix = f"({video_id})"
+    for entry in DATA_DIR.iterdir():
+        if not entry.is_dir() or not entry.name.endswith(suffix):
+            continue
+        stem_paths = {name: entry / f"{name}.wav" for name in STEM_NAMES}
+        if all(path.is_file() for path in stem_paths.values()):
+            return {name: str(path) for name, path in stem_paths.items()}
+    return None
 
 
 @router.post("/api/separate", status_code=202)
@@ -61,7 +78,8 @@ async def create_separation(
     if file is not None and file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(status_code=400, detail="Unsupported file type")
 
-    if youtube_url is not None and not YOUTUBE_URL_RE.match(youtube_url):
+    youtube_match = YOUTUBE_URL_RE.match(youtube_url) if youtube_url is not None else None
+    if youtube_url is not None and youtube_match is None:
         raise HTTPException(status_code=400, detail="Not a valid YouTube URL")
 
     job = jobs.create_job()
@@ -102,6 +120,16 @@ async def create_separation(
                 loop.call_soon_threadsafe(_on_error, job.id, str(exc))
 
     else:
+        video_id = youtube_match.group("video_id")
+        existing_stems = _find_existing_stems(video_id)
+        if existing_stems is not None:
+            logger.info(
+                "Job %s: video %s already downloaded and separated, reusing existing stems",
+                job.id,
+                video_id,
+            )
+            jobs.set_done(job.id, existing_stems)
+            return {"job_id": job.id}
 
         def run() -> None:
             try:
