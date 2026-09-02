@@ -132,6 +132,16 @@ export default function StemPlayer({ jobId, stemPaths }: StemPlayerProps) {
     setPosition(value);
   }
 
+  const handlePlayFromCursor = useCallback(async () => {
+    if (cursor === null) return;
+    await Tone.start();
+    const target = Math.min(1, Math.max(0, cursor)) * duration;
+    Tone.getTransport().seconds = target;
+    setPosition(target);
+    Tone.getTransport().start();
+    setIsPlaying(true);
+  }, [cursor, duration]);
+
   function toggleMute(name: string) {
     const player = playersRef.current[name];
     if (!player) return;
@@ -159,6 +169,16 @@ export default function StemPlayer({ jobId, stemPaths }: StemPlayerProps) {
           className="shrink-0 rounded-full w-10 h-10 flex items-center justify-center bg-blue-600 text-white disabled:opacity-50"
         >
           {isPlaying ? "❚❚" : "▶"}
+        </button>
+        <button
+          type="button"
+          onClick={() => void handlePlayFromCursor()}
+          disabled={!ready || cursor === null}
+          aria-label="Play from cursor"
+          title="Play from cursor"
+          className="shrink-0 rounded-full w-10 h-10 flex items-center justify-center bg-amber-500 text-white disabled:opacity-50"
+        >
+          ▶
         </button>
         <span className="text-xs tabular-nums text-gray-500 dark:text-gray-400 w-10 text-right">
           {formatTime(position)}
