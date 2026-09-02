@@ -20,18 +20,18 @@ function formatTime(seconds: number): string {
 export default function StemPlayer({ jobId, stemPaths }: StemPlayerProps) {
   const stems = STEM_NAMES.filter((name) => stemPaths[name]);
 
-  const playersRef = useRef<Record<string, Tone.Player>>({});
-  const pitchShiftsRef = useRef<Record<string, Tone.PitchShift>>({});
+  const playersRef = useRef<Record<string, Tone.GrainPlayer>>({});
   const seekingRef = useRef(false);
   const rafRef = useRef<number | null>(null);
-  // Tone's sync mechanism re-anchors a synced Player's buffer offset to
-  // Transport.seconds *verbatim* every time the transport (re)starts (including
-  // a seek during playback, which internally does a stop+start). Between
-  // anchor points, the buffer advances at `speed` per real second while
-  // Transport.seconds itself always advances at 1x real time -- so "song
-  // position" has to be derived from the last anchor, not read directly off
-  // Transport.seconds, whenever speed !== 1.
-  const anchorRef = useRef(0);
+  // GrainPlayer re-derives its buffer offset from the Transport's synced-start
+  // offset every (re)start using: bufferOffset(T) = playbackRate * (startOffset + T),
+  // where T is real seconds elapsed since that (re)start and startOffset is
+  // whatever Transport.seconds was at that moment (traced from GrainPlayer.js's
+  // _start/_tick). So to anchor playback at song position P, Transport.seconds
+  // must be set to P / speed (not P) -- these two anchors are tracked separately
+  // since they diverge by a factor of `speed`.
+  const anchorPositionRef = useRef(0);
+  const anchorTransportRef = useRef(0);
 
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -42,9 +42,10 @@ export default function StemPlayer({ jobId, stemPaths }: StemPlayerProps) {
   const [cursor, setCursor] = useState<number | null>(null);
   const [speed, setSpeed] = useState(1);
 
-  // Create/load one Tone.Player per stem, synced to the shared Transport.
-  // Each player routes through its own PitchShift node so playback speed can
-  // change (via player.playbackRate) without altering pitch.
+  // Create/load one Tone.GrainPlayer per stem, synced to the shared Transport.
+  // GrainPlayer's playbackRate changes speed without altering pitch (granular
+  // synthesis keeps them independent), so no separate pitch-compensation node
+  // is needed.
   useEffect(() => {
     let cancelled = false;
     const transport = Tone.getTransport();
@@ -56,15 +57,17 @@ export default function StemPlayer({ jobId, stemPaths }: StemPlayerProps) {
     setPosition(0);
     setLoadError(null);
     setSpeed(1);
-    anchorRef.current = 0;
+    anchorPositionRef.current = 0;
+    anchorTransportRef.current = 0;
 
-    const players: Record<string, Tone.Player> = {};
-    const pitchShifts: Record<string, Tone.PitchShift> = {};
+    const players: Record<string, Tone.GrainPlayer> = {};
     let loadedCount = 0;
 
     for (const name of stems) {
-      const pitchShift = new Tone.PitchShift().toDestination();
-      const player = new Tone.Player({
+      // GrainPlayer adjusts pitch and playback rate independently (granular
+      // synthesis), so playbackRate alone can change speed without a separate
+      // pitch-compensation node.
+      const player = new Tone.GrainPlayer({
         url: `/api/jobs/${jobId}/stems/${name}`,
         onload: () => {
           if (cancelled) return;
@@ -80,14 +83,12 @@ export default function StemPlayer({ jobId, stemPaths }: StemPlayerProps) {
         onerror: (err) => {
           if (!cancelled) setLoadError(err.message || "Failed to load audio");
         },
-      }).connect(pitchShift);
+      }).toDestination();
       player.sync().start(0);
       players[name] = player;
-      pitchShifts[name] = pitchShift;
     }
 
     playersRef.current = players;
-    pitchShiftsRef.current = pitchShifts;
     setMuted(Object.fromEntries(stems.map((name) => [name, false])));
 
     return () => {
@@ -97,54 +98,51 @@ export default function StemPlayer({ jobId, stemPaths }: StemPlayerProps) {
         player.unsync();
         player.dispose();
       }
-      for (const pitchShift of Object.values(pitchShifts)) {
-        pitchShift.dispose();
-      }
       playersRef.current = {};
-      pitchShiftsRef.current = {};
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId]);
 
-  // Force Tone's synced players to (re)anchor at exactly `songPosition`: setting
-  // Transport.seconds while started makes Tone internally stop+restart every
-  // synced source at that offset (this is also what makes seeking-while-playing
-  // work); while paused it just repositions the frozen clock. Either way, the
-  // buffer offset used on the next start is Transport.seconds verbatim, so the
-  // anchor and Transport.seconds must always be set to the same value together.
-  function resyncTransport(songPosition: number) {
-    Tone.getTransport().seconds = songPosition;
-    anchorRef.current = songPosition;
-    setPosition(songPosition);
-  }
+  // Force GrainPlayer's synced offset to (re)anchor at exactly `songPosition`:
+  // Transport.seconds must be set to songPosition / speed (see the note by
+  // anchorPositionRef above). Setting Transport.seconds while started makes
+  // Tone internally stop+restart every synced source at that offset (this is
+  // also what makes seeking-while-playing work); while paused it just
+  // repositions the frozen clock.
+  const resyncTransport = useCallback(
+    (songPosition: number) => {
+      const transportTarget = speed > 0 ? songPosition / speed : 0;
+      Tone.getTransport().seconds = transportTarget;
+      anchorPositionRef.current = songPosition;
+      anchorTransportRef.current = transportTarget;
+      setPosition(songPosition);
+    },
+    [speed],
+  );
 
   const handlePause = useCallback(() => {
     const transport = Tone.getTransport();
-    const anchor = anchorRef.current;
-    const finalPosition = anchor + speed * (transport.seconds - anchor);
+    const finalPosition =
+      anchorPositionRef.current + speed * (transport.seconds - anchorTransportRef.current);
     transport.pause();
-    anchorRef.current = finalPosition;
-    transport.seconds = finalPosition;
-    setPosition(finalPosition);
+    resyncTransport(finalPosition);
     setIsPlaying(false);
-  }, [speed]);
+  }, [speed, resyncTransport]);
 
-  // Poll the Transport position while playing to drive the seek bar. Since the
-  // buffer only matches Transport.seconds exactly at the last anchor point,
-  // song position has to be extrapolated from there using the current speed.
+  // Poll the Transport position while playing to drive the seek bar. Song
+  // position is extrapolated from the last anchor pair using the current speed
+  // (see anchorPositionRef/anchorTransportRef above).
   useEffect(() => {
     if (!isPlaying) return;
     const transport = Tone.getTransport();
 
     function tick() {
       if (!seekingRef.current) {
-        const anchor = anchorRef.current;
-        const songPosition = anchor + speed * (transport.seconds - anchor);
+        const songPosition =
+          anchorPositionRef.current + speed * (transport.seconds - anchorTransportRef.current);
         if (duration > 0 && songPosition >= duration) {
           transport.pause();
-          anchorRef.current = 0;
-          transport.seconds = 0;
-          setPosition(0);
+          resyncTransport(0);
           setIsPlaying(false);
           return;
         }
@@ -157,7 +155,7 @@ export default function StemPlayer({ jobId, stemPaths }: StemPlayerProps) {
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, [isPlaying, duration, speed]);
+  }, [isPlaying, duration, speed, resyncTransport]);
 
   const handlePlayPause = useCallback(async () => {
     await Tone.start();
@@ -170,7 +168,7 @@ export default function StemPlayer({ jobId, stemPaths }: StemPlayerProps) {
       transport.start();
       setIsPlaying(true);
     }
-  }, [isPlaying, duration, position, handlePause]);
+  }, [isPlaying, duration, position, handlePause, resyncTransport]);
 
   function handleSeek(value: number) {
     resyncTransport(value);
@@ -183,21 +181,19 @@ export default function StemPlayer({ jobId, stemPaths }: StemPlayerProps) {
     resyncTransport(target);
     Tone.getTransport().start();
     setIsPlaying(true);
-  }, [cursor, duration]);
+  }, [cursor, duration, resyncTransport]);
 
   function handleSpeedChange(newSpeed: number) {
     for (const player of Object.values(playersRef.current)) {
       player.playbackRate = newSpeed;
     }
-    // Cancel the pitch shift that changing playbackRate introduces, so the
-    // song plays faster/slower without sounding higher/lower.
-    const semitones = -12 * Math.log2(newSpeed);
-    for (const pitchShift of Object.values(pitchShiftsRef.current)) {
-      pitchShift.pitch = semitones;
-    }
-    // Re-anchor at the current position so playback (if running) continues
-    // seamlessly from here, now advancing at the new rate.
-    resyncTransport(position);
+    // Re-anchor at the current position using the NEW speed (not via
+    // resyncTransport, which is still bound to the old speed from this
+    // render's closure) so playback continues seamlessly from here.
+    const transportTarget = newSpeed > 0 ? position / newSpeed : 0;
+    Tone.getTransport().seconds = transportTarget;
+    anchorPositionRef.current = position;
+    anchorTransportRef.current = transportTarget;
     setSpeed(newSpeed);
   }
 
