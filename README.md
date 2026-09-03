@@ -59,8 +59,8 @@ Set `STEM_PLAYER_DATA_DIR` to point the whole library elsewhere, e.g.:
 STEM_PLAYER_DATA_DIR=~/Music/StemPlayer .venv/bin/uvicorn app.main:app --port 8000
 ```
 
-Files persist across restarts on their own — nothing deletes them except a
-24h TTL cleanup that runs at startup (`app/cleanup.py`), based on each job
-folder's last-modified time. Note that job *status* (progress, which stems
-belong to which job) is only kept in memory and is lost on restart, even
-though the files themselves remain on disk.
+Files persist across restarts, and nothing ever deletes them automatically —
+clean up old song folders yourself if you want to reclaim space. Note that
+job *status* (progress, which stems belong to which job) is only kept in
+memory and is lost on restart, even though the files themselves remain on
+disk.
