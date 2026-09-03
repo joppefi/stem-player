@@ -6,13 +6,16 @@ import { MODELS, type Job, type JobStatus } from "../types";
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Stem Player" },
-    { name: "description", content: "Split a song into vocals, drums, bass, and other." },
+    {
+      name: "description",
+      content: "Split a song into vocals, drums, bass, and other.",
+    },
   ];
 }
 
 export default function Home() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"file" | "youtube">("file");
+  const [mode, setMode] = useState<"file" | "youtube">("youtube");
   const [file, setFile] = useState<File | null>(null);
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [model, setModel] = useState<string>(MODELS[0].value);
@@ -36,7 +39,9 @@ export default function Home() {
         // Keep polling only while something is actually in flight, so the list
         // stays live for active jobs without hitting the backend forever.
         const hasActiveJob = data.some((job) =>
-          (["queued", "downloading", "processing"] as JobStatus[]).includes(job.status),
+          (["queued", "downloading", "processing"] as JobStatus[]).includes(
+            job.status,
+          ),
         );
         if (hasActiveJob) {
           timeoutId = setTimeout(fetchJobs, 3000);
@@ -58,10 +63,13 @@ export default function Home() {
     setError(null);
     setIsUploading(true);
     try {
-      const response = await fetch(`/api/separate?model=${encodeURIComponent(model)}`, {
-        method: "POST",
-        body: formData,
-      });
+      const response = await fetch(
+        `/api/separate?model=${encodeURIComponent(model)}`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
       if (!response.ok) {
         const body = await response.json().catch(() => null);
         throw new Error(body?.detail ?? `Request failed (${response.status})`);
@@ -121,7 +129,9 @@ export default function Home() {
           <button
             type="button"
             className={`flex-1 rounded py-1.5 transition-colors ${
-              mode === "file" ? "bg-gray-200 dark:bg-gray-800 font-medium" : "text-gray-500"
+              mode === "file"
+                ? "bg-gray-200 dark:bg-gray-800 font-medium"
+                : "text-gray-500"
             }`}
             onClick={() => setMode("file")}
             disabled={isUploading}
@@ -131,7 +141,9 @@ export default function Home() {
           <button
             type="button"
             className={`flex-1 rounded py-1.5 transition-colors ${
-              mode === "youtube" ? "bg-gray-200 dark:bg-gray-800 font-medium" : "text-gray-500"
+              mode === "youtube"
+                ? "bg-gray-200 dark:bg-gray-800 font-medium"
+                : "text-gray-500"
             }`}
             onClick={() => setMode("youtube")}
             disabled={isUploading}
@@ -195,12 +207,16 @@ export default function Home() {
           </form>
         )}
 
-        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && (
+          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        )}
       </div>
 
       {jobs.length > 0 && (
         <div className="w-full max-w-md flex flex-col gap-2">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-400">Jobs</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-400">
+            Jobs
+          </h2>
           <ul className="flex flex-col gap-1.5">
             {jobs.map((job) => (
               <li key={job.id}>
