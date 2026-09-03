@@ -21,3 +21,9 @@ class Job(BaseModel):
     analysis_path: str | None = None
     error: str | None = None
     created_at: float = Field(default_factory=time.time)
+
+
+class SongSummary(BaseModel):
+    name: str
+    stems: list[str]
+    has_analysis: bool

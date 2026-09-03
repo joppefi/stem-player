@@ -8,7 +8,7 @@ from fastapi import APIRouter, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 
 from app import jobs
-from app.models import Job
+from app.models import Job, SongSummary
 from app.naming import sanitize_name, unique_dir
 from app.paths import DATA_DIR
 from app.pubsub import publish_update
@@ -224,6 +224,31 @@ def _on_error(job_id: str, error: str) -> None:
 @router.get("/api/jobs", response_model=list[Job])
 def list_jobs() -> list[Job]:
     return jobs.list_jobs()
+
+
+@router.get("/api/songs", response_model=list[SongSummary])
+def list_songs() -> list[SongSummary]:
+    """List every already-separated song: a DATA_DIR subfolder with all 4 stems."""
+    if not DATA_DIR.exists():
+        return []
+
+    entries: list[tuple[float, SongSummary]] = []
+    for entry in DATA_DIR.iterdir():
+        if not entry.is_dir():
+            continue
+        if not all((entry / f"{name}.wav").is_file() for name in STEM_NAMES):
+            continue
+        try:
+            mtime = entry.stat().st_mtime
+        except FileNotFoundError:
+            continue
+        has_analysis = (entry / "analysis.json").is_file()
+        entries.append(
+            (mtime, SongSummary(name=entry.name, stems=list(STEM_NAMES), has_analysis=has_analysis))
+        )
+
+    entries.sort(key=lambda pair: pair[0], reverse=True)
+    return [summary for _, summary in entries]
 
 
 @router.get("/api/jobs/{job_id}", response_model=Job)
