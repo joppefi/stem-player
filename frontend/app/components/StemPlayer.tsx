@@ -8,7 +8,7 @@ interface StemPlayerProps {
   stemPaths: Record<string, string>;
 }
 
-const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+const SPEED_OPTIONS = [0.5, 0.75, 0.8, 0.85, 0.9, 0.95, 1];
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
