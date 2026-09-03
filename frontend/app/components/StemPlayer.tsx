@@ -281,35 +281,33 @@ export default function StemPlayer({ jobId, stemPaths }: StemPlayerProps) {
 
       <div className="flex flex-col gap-2">
         {stems.map((name) => (
-          <div key={name} className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => toggleMute(name)}
-              className={`text-xs font-medium rounded px-2 py-1 border w-16 shrink-0 ${
-                muted[name]
-                  ? "border-red-400 text-red-500 bg-red-50 dark:bg-red-950/30"
-                  : "border-gray-300 dark:border-gray-700"
-              }`}
-            >
-              {muted[name] ? "Unmute" : "Mute"}
-            </button>
-            <span className="text-sm capitalize w-14 shrink-0">{name}</span>
-            <Waveform
-              jobId={jobId}
-              stemName={name}
-              progress={duration > 0 ? position / duration : 0}
-              onSeek={(ratio) => handleSeek(ratio * duration)}
-              onDoubleClick={(ratio) => setCursor(ratio)}
-              cursor={cursor}
-              disabled={!ready}
-            />
-            <a
-              href={`/api/jobs/${jobId}/stems/${name}`}
-              download
-              className="shrink-0 text-xs text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              Download
-            </a>
+          <div className="flex flex-col gap-2">
+            <div key={name} className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => toggleMute(name)}
+                className={`text-xs font-medium rounded px-2 py-1 border shrink-0 ${
+                  muted[name]
+                    ? "border-red-400 text-red-500 bg-red-50 dark:bg-red-950/30"
+                    : "border-gray-300 dark:border-gray-700"
+                }`}
+              >
+                {muted[name] ? "🔇" : "🔈"}
+              </button>
+              <span className="text-sm capitalize w-14 shrink-0">{name}</span>
+            </div>
+            <div key={name} className="flex items-center gap-3">
+              <Waveform
+                jobId={jobId}
+                stemName={name}
+                progress={duration > 0 ? position / duration : 0}
+                onSeek={(ratio) => handleSeek(ratio * duration)}
+                onDoubleClick={(ratio) => setCursor(ratio)}
+                cursor={cursor}
+                disabled={!ready}
+                muted={muted[name]}
+              />
+            </div>
           </div>
         ))}
       </div>

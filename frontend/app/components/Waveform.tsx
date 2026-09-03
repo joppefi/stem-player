@@ -8,6 +8,7 @@ interface WaveformProps {
   onDoubleClick?: (ratio: number) => void;
   cursor?: number | null; // 0..1, marker position independent of playback progress
   disabled?: boolean;
+  muted?: boolean;
 }
 
 const IMAGE_WIDTH = 600;
@@ -21,6 +22,7 @@ export default function Waveform({
   onDoubleClick,
   cursor,
   disabled,
+  muted,
 }: WaveformProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -42,9 +44,10 @@ export default function Waveform({
   return (
     <div
       ref={containerRef}
-      className={`relative flex-1 h-16 rounded overflow-hidden bg-gray-100 dark:bg-gray-900 ${
+      className={`relative flex-1 h-16 rounded overflow-hidden border border-gray-300 bg-gray-100 dark:bg-gray-900 ${
         disabled ? "cursor-not-allowed" : "cursor-pointer"
-      }`}
+      }
+      ${muted ? "bg-red-100 border-red-500" : ""}`}
       onPointerDown={(e) => {
         if (disabled) return;
         e.currentTarget.setPointerCapture(e.pointerId);
@@ -72,7 +75,7 @@ export default function Waveform({
         src={src}
         alt=""
         draggable={false}
-        className="absolute inset-0 w-full h-full object-fill pointer-events-none select-none"
+        className={`absolute inset-0 w-full h-full object-fill pointer-events-none select-none ${muted ? "grayscale" : ""}`}
         style={{ clipPath: `inset(0 ${(1 - clampedProgress) * 100}% 0 0)` }}
       />
       {/* Cursor marker: independent of playback progress (e.g. set via double-click) */}
