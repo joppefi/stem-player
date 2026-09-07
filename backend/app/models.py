@@ -27,3 +27,8 @@ class SongSummary(BaseModel):
     name: str
     stems: list[str]
     has_analysis: bool
+
+
+class SongAnalysis(BaseModel):
+    key: str
+    bpm: float

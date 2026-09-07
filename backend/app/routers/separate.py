@@ -8,7 +8,7 @@ from fastapi import APIRouter, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 
 from app import jobs
-from app.models import Job, SongSummary
+from app.models import Job, SongAnalysis, SongSummary
 from app.naming import sanitize_name, unique_dir
 from app.paths import DATA_DIR
 from app.pubsub import publish_update
@@ -102,7 +102,9 @@ async def create_separation(
     if file is not None and file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(status_code=400, detail="Unsupported file type")
 
-    youtube_match = YOUTUBE_URL_RE.match(youtube_url) if youtube_url is not None else None
+    youtube_match = (
+        YOUTUBE_URL_RE.match(youtube_url) if youtube_url is not None else None
+    )
     if youtube_url is not None and youtube_match is None:
         raise HTTPException(status_code=400, detail="Not a valid YouTube URL")
 
@@ -174,7 +176,9 @@ async def create_separation(
                 video_id = info.get("id") or job.id
                 job_dir = unique_dir(DATA_DIR, f"{title} ({video_id})")
                 loop.call_soon_threadsafe(_on_title, job.id, job_dir.name)
-                logger.info("Job %s: downloading %s to %s", job.id, youtube_url, job_dir)
+                logger.info(
+                    "Job %s: downloading %s to %s", job.id, youtube_url, job_dir
+                )
                 input_path = download_audio(youtube_url, job_dir, download_progress_cb)
                 stem_paths = run_separation(input_path, job_dir, model, progress_cb)
                 analysis_path = _run_analysis(input_path, job_dir, job.id)
@@ -244,7 +248,12 @@ def list_songs() -> list[SongSummary]:
             continue
         has_analysis = (entry / "analysis.json").is_file()
         entries.append(
-            (mtime, SongSummary(name=entry.name, stems=list(STEM_NAMES), has_analysis=has_analysis))
+            (
+                mtime,
+                SongSummary(
+                    name=entry.name, stems=list(STEM_NAMES), has_analysis=has_analysis
+                ),
+            )
         )
 
     entries.sort(key=lambda pair: pair[0], reverse=True)
@@ -273,7 +282,9 @@ def get_stem(job_id: str, stem_name: str) -> FileResponse:
 
 
 @router.get("/api/jobs/{job_id}/stems/{stem_name}/waveform")
-def get_waveform(job_id: str, stem_name: str, width: int = 600, height: int = 80) -> Response:
+def get_waveform(
+    job_id: str, stem_name: str, width: int = 600, height: int = 80
+) -> Response:
     job = jobs.get_job(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -283,8 +294,8 @@ def get_waveform(job_id: str, stem_name: str, width: int = 600, height: int = 80
     return Response(content=png_bytes, media_type="image/png")
 
 
-@router.get("/api/jobs/{job_id}/analysis")
-def get_analysis(job_id: str) -> FileResponse:
+@router.get("/api/jobs/{job_id}/analysis", response_model=SongAnalysis)
+def get_analysis(job_id: str) -> SongAnalysis:
     job = jobs.get_job(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -298,7 +309,9 @@ def get_analysis(job_id: str) -> FileResponse:
     job_dir = Path(next(iter(job.stem_paths.values()))).parent
     original = _find_original_file(job_dir)
     if original is None:
-        raise HTTPException(status_code=404, detail="Original audio not found for analysis")
+        raise HTTPException(
+            status_code=404, detail="Original audio not found for analysis"
+        )
 
     logger.info("Job %s: analysis missing, generating on request", job_id)
     analysis_path = _run_analysis(original, job_dir, job_id)
