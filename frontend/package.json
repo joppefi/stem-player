@@ -5,7 +5,8 @@
   "scripts": {
     "build": "react-router build",
     "dev": "react-router dev",
-    "typecheck": "react-router typegen && tsc"
+    "typecheck": "react-router typegen && tsc",
+    "generate:types": "openapi-typescript http://localhost:8000/openapi.json --output app/api/types.ts"
   },
   "dependencies": {
     "isbot": "^5",
@@ -20,6 +21,7 @@
     "@types/node": "^22",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3",
     "vite": "^8.0.3"
