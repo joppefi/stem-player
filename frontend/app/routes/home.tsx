@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Route } from "./+types/home";
 import { MODELS, type Job, type JobStatus } from "../types";
+import { useListSongs } from "~/api/hooks.generated";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -24,6 +25,8 @@ export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
   const [jobs, setJobs] = useState<Job[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const { data: songs } = useListSongs();
 
   useEffect(() => {
     let cancelled = false;
@@ -211,6 +214,27 @@ export default function Home() {
           <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
         )}
       </div>
+
+      {songs && songs.length > 0 && (
+        <div className="w-full max-w-md flex flex-col gap-2">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-400">
+            Songs
+          </h2>
+          <ul className="flex flex-col gap-1.5">
+            {songs.map((song) => (
+              <li
+                key={song.name}
+                className="flex items-center gap-3 rounded-md border border-gray-200 dark:border-gray-800 px-3 py-2 text-sm"
+              >
+                <span className="truncate flex-1">{song.name}</span>
+                {song.has_analysis && (
+                  <span className="shrink-0 text-xs text-gray-400">Analyzed</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {jobs.length > 0 && (
         <div className="w-full max-w-md flex flex-col gap-2">
