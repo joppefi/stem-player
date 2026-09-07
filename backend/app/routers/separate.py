@@ -50,6 +50,19 @@ YOUTUBE_URL_RE = re.compile(
     r"(?P<video_id>[A-Za-z0-9_-]{11})",
     re.IGNORECASE,
 )
+YOUTUBE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
+
+
+def _resolve_youtube_input(raw: str) -> tuple[str, str] | None:
+    """Accepts a full YouTube URL or a bare 11-char video ID; returns
+    (url, video_id), synthesizing a canonical watch URL for a bare ID."""
+    raw = raw.strip()
+    match = YOUTUBE_URL_RE.match(raw)
+    if match:
+        return raw, match.group("video_id")
+    if YOUTUBE_ID_RE.match(raw):
+        return f"https://www.youtube.com/watch?v={raw}", raw
+    return None
 
 
 def _find_existing_stems(video_id: str) -> dict[str, str] | None:
@@ -102,11 +115,13 @@ async def create_separation(
     if file is not None and file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(status_code=400, detail="Unsupported file type")
 
-    youtube_match = (
-        YOUTUBE_URL_RE.match(youtube_url) if youtube_url is not None else None
+    youtube_resolved = (
+        _resolve_youtube_input(youtube_url) if youtube_url is not None else None
     )
-    if youtube_url is not None and youtube_match is None:
-        raise HTTPException(status_code=400, detail="Not a valid YouTube URL")
+    if youtube_url is not None and youtube_resolved is None:
+        raise HTTPException(
+            status_code=400, detail="Not a valid YouTube URL or video ID"
+        )
 
     job = jobs.create_job()
     loop = asyncio.get_running_loop()
@@ -151,7 +166,7 @@ async def create_separation(
                 loop.call_soon_threadsafe(_on_error, job.id, str(exc))
 
     else:
-        video_id = youtube_match.group("video_id")
+        resolved_url, video_id = youtube_resolved
         existing_stems = _find_existing_stems(video_id)
         if existing_stems is not None:
             existing_job_dir = Path(next(iter(existing_stems.values()))).parent
@@ -171,15 +186,15 @@ async def create_separation(
 
         def run() -> None:
             try:
-                info = probe(youtube_url)
+                info = probe(resolved_url)
                 title = sanitize_name(info.get("title") or "video")
                 video_id = info.get("id") or job.id
                 job_dir = unique_dir(DATA_DIR, f"{title} ({video_id})")
                 loop.call_soon_threadsafe(_on_title, job.id, job_dir.name)
                 logger.info(
-                    "Job %s: downloading %s to %s", job.id, youtube_url, job_dir
+                    "Job %s: downloading %s to %s", job.id, resolved_url, job_dir
                 )
-                input_path = download_audio(youtube_url, job_dir, download_progress_cb)
+                input_path = download_audio(resolved_url, job_dir, download_progress_cb)
                 stem_paths = run_separation(input_path, job_dir, model, progress_cb)
                 analysis_path = _run_analysis(input_path, job_dir, job.id)
                 loop.call_soon_threadsafe(
