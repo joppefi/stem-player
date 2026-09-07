@@ -6,7 +6,8 @@
     "build": "react-router build",
     "dev": "react-router dev",
     "typecheck": "react-router typegen && tsc",
-    "generate:types": "openapi-typescript http://localhost:8000/openapi.json --output app/api/types.ts"
+    "generate:types": "openapi-typescript http://localhost:8000/openapi.json --output app/api/types.ts",
+    "generate:api-hooks": "node scripts/generate-api-hooks.mjs"
   },
   "dependencies": {
     "isbot": "^5",

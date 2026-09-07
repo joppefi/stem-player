@@ -61,4 +61,17 @@ export function useApi<T>(url: string | null | undefined, options?: RequestInit)
   return { data, loading, error, refetch };
 }
 
+/** Builds a `?a=1&b=2`-style query string, dropping undefined/null values. Empty for none. */
+export function buildQueryString(query?: Record<string, unknown> | null): string {
+  if (!query) return "";
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== null) {
+      params.set(key, String(value));
+    }
+  }
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
+}
+
 export default useApi;

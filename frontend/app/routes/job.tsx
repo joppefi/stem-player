@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router";
 import type { Route } from "./+types/job";
 import StemPlayer from "../components/StemPlayer";
 import type { Job } from "../types";
+import SongDetails from "~/components/SongDetails";
 
 export function meta({}: Route.MetaArgs) {
   return [{ title: "Separating… — Stem Player" }];
@@ -27,7 +28,10 @@ export default function JobPage() {
         clearInterval(pollHandle);
         pollHandle = null;
       }
-      if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+      if (
+        socket.readyState === WebSocket.OPEN ||
+        socket.readyState === WebSocket.CONNECTING
+      ) {
         socket.close(1000);
       }
     }
@@ -95,14 +99,22 @@ export default function JobPage() {
       <main className="min-h-screen flex flex-col items-center justify-center gap-8 p-6">
         <div className="text-center">
           {job.title && (
-            <h1 className="text-2xl font-semibold break-words max-w-xl">{job.title}</h1>
+            <h1 className="text-2xl font-semibold break-words max-w-xl">
+              {job.title}
+            </h1>
           )}
-          <p className="text-sm text-gray-500 dark:text-gray-400">Stems ready</p>
-          <Link to="/" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Stems ready
+          </p>
+          <Link
+            to="/"
+            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+          >
             Separate another song
           </Link>
         </div>
         <div className="w-full max-w-xl">
+          <SongDetails jobId={jobId} />
           <StemPlayer jobId={jobId} stemPaths={job.stem_paths} />
         </div>
       </main>
@@ -133,10 +145,14 @@ export default function JobPage() {
             style={{ width: `${percent}%` }}
           />
         </div>
-        <p className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">{percent}%</p>
+        <p className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
+          {percent}%
+        </p>
       </div>
       {connectionError && (
-        <p className="text-xs text-gray-400">Live updates unavailable — polling for status…</p>
+        <p className="text-xs text-gray-400">
+          Live updates unavailable — polling for status…
+        </p>
       )}
     </main>
   );
@@ -150,7 +166,10 @@ function ErrorScreen({ message }: { message: string }) {
           Separation failed
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">{message}</p>
-        <Link to="/" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+        <Link
+          to="/"
+          className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+        >
           Try again
         </Link>
       </div>
@@ -159,5 +178,9 @@ function ErrorScreen({ message }: { message: string }) {
 }
 
 function Centered({ children }: { children: React.ReactNode }) {
-  return <main className="min-h-screen flex items-center justify-center p-6">{children}</main>;
+  return (
+    <main className="min-h-screen flex items-center justify-center p-6">
+      {children}
+    </main>
+  );
 }
