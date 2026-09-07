@@ -4,6 +4,17 @@ import type { Route } from "./+types/home";
 import { MODELS, type Job, type JobStatus } from "../types";
 import { useListSongs } from "~/api/hooks.generated";
 
+// Song folders are named "<title> (<id>)" -- for YouTube-sourced songs that id
+// is the 11-char video id, which can be resubmitted as youtube_url to hit the
+// backend's dedup path (POST /api/separate) and get back an instant "done" job.
+// Upload-sourced songs end in a job UUID instead, which doesn't match, so no
+// button renders for those.
+const VIDEO_ID_RE = /\(([A-Za-z0-9_-]{11})\)$/;
+
+function extractVideoId(songName: string): string | null {
+  return VIDEO_ID_RE.exec(songName)?.[1] ?? null;
+}
+
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Stem Player" },
@@ -99,6 +110,12 @@ export default function Home() {
     if (!youtubeUrl.trim()) return;
     const formData = new FormData();
     formData.append("youtube_url", youtubeUrl.trim());
+    void submit(formData);
+  }
+
+  function handlePlaySong(videoId: string) {
+    const formData = new FormData();
+    formData.append("youtube_url", videoId);
     void submit(formData);
   }
 
@@ -221,17 +238,30 @@ export default function Home() {
             Songs
           </h2>
           <ul className="flex flex-col gap-1.5">
-            {songs.map((song) => (
-              <li
-                key={song.name}
-                className="flex items-center gap-3 rounded-md border border-gray-200 dark:border-gray-800 px-3 py-2 text-sm"
-              >
-                <span className="truncate flex-1">{song.name}</span>
-                {song.has_analysis && (
-                  <span className="shrink-0 text-xs text-gray-400">Analyzed</span>
-                )}
-              </li>
-            ))}
+            {songs.map((song) => {
+              const videoId = extractVideoId(song.name);
+              return (
+                <li
+                  key={song.name}
+                  className="flex items-center gap-3 rounded-md border border-gray-200 dark:border-gray-800 px-3 py-2 text-sm"
+                >
+                  <span className="truncate flex-1">{song.name}</span>
+                  {song.has_analysis && (
+                    <span className="shrink-0 text-xs text-gray-400">Analyzed</span>
+                  )}
+                  {videoId && (
+                    <button
+                      type="button"
+                      onClick={() => handlePlaySong(videoId)}
+                      disabled={isUploading}
+                      className="shrink-0 rounded-md bg-blue-600 text-white text-xs font-medium px-2.5 py-1 disabled:opacity-60"
+                    >
+                      Play
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
