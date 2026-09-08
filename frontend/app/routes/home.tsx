@@ -241,24 +241,13 @@ export default function Home() {
             {songs.map((song) => {
               const videoId = extractVideoId(song.name);
               return (
-                <li
-                  key={song.name}
-                  className="flex items-center gap-3 rounded-md border border-gray-200 dark:border-gray-800 px-3 py-2 text-sm"
-                >
-                  <span className="truncate flex-1">{song.name}</span>
-                  {song.has_analysis && (
-                    <span className="shrink-0 text-xs text-gray-400">Analyzed</span>
-                  )}
-                  {videoId && (
-                    <button
-                      type="button"
-                      onClick={() => handlePlaySong(videoId)}
-                      disabled={isUploading}
-                      className="shrink-0 rounded-md bg-blue-600 text-white text-xs font-medium px-2.5 py-1 disabled:opacity-60"
-                    >
-                      Play
-                    </button>
-                  )}
+                <li key={song.name}>
+                  <Link
+                    to={`/songs/${videoId}`}
+                    className="flex items-center gap-3 rounded-md border border-gray-200 dark:border-gray-800 px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-900"
+                  >
+                    <span className="truncate flex-1">{song.name}</span>
+                  </Link>
                 </li>
               );
             })}
