@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router";
 import type { Route } from "./+types/song";
+import SongDetails from "../components/SongDetails";
 import StemPlayer from "../components/StemPlayer";
 import { useGetSong } from "~/api/hooks.generated";
 
@@ -42,6 +43,7 @@ export default function SongPage() {
           Separate another song
         </Link>
       </div>
+      <SongDetails songId={songId} />
       <div className="w-full max-w-xl">
         <StemPlayer songId={songId} stemPaths={song.stem_paths} />
       </div>
