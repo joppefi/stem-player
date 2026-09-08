@@ -10,7 +10,7 @@ interface StemPlayerProps {
 }
 
 const SPEED_OPTIONS = [0.5, 0.75, 0.8, 0.85, 0.9, 0.95, 1];
-const CURSOR_STEP_SECONDS = 5;
+const CURSOR_STEP_SECONDS = 0.1;
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
@@ -255,14 +255,14 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
         handler: moveCursorLeft,
       },
       {
-        key: "s",
-        description: "Set cursor to current position",
-        handler: setCursorToCurrentPosition,
-      },
-      {
         key: "d",
         description: "Move cursor right",
         handler: moveCursorRight,
+      },
+      {
+        key: "s",
+        description: "Set cursor to current position",
+        handler: setCursorToCurrentPosition,
       },
     ],
     [
