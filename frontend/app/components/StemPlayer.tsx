@@ -250,7 +250,7 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
         handler: () => void handlePlayFromCursor(),
       },
       {
-        key: "w",
+        key: "a",
         description: "Move cursor left",
         handler: moveCursorLeft,
       },
@@ -265,7 +265,12 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
         handler: moveCursorRight,
       },
     ],
-    [handlePlayFromCursor, moveCursorLeft, moveCursorRight, setCursorToCurrentPosition],
+    [
+      handlePlayFromCursor,
+      moveCursorLeft,
+      moveCursorRight,
+      setCursorToCurrentPosition,
+    ],
   );
 
   if (loadError) {
