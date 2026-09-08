@@ -264,12 +264,18 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
         description: "Set cursor to current position",
         handler: setCursorToCurrentPosition,
       },
+      {
+        key: "Alt",
+        description: "Pause playback",
+        handler: handlePause,
+      },
     ],
     [
       handlePlayFromCursor,
       moveCursorLeft,
       moveCursorRight,
       setCursorToCurrentPosition,
+      handlePause,
     ],
   );
 
@@ -376,7 +382,7 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
         ))}
       </div>
 
-      <KeyboardController controls={keyboardControls} />
+      {ready && <KeyboardController controls={keyboardControls} />}
     </div>
   );
 }
