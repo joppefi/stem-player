@@ -240,6 +240,18 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
     setCursor(position / duration);
   }, []);
 
+  // handlePlayPause itself is recreated every tick (it depends on `position`),
+  // so calling it directly from keyboardControls would churn the memo below on
+  // every animation frame just like the state it's built from. Route through a
+  // ref to the latest version instead, called via a permanently-stable wrapper.
+  const handlePlayPauseRef = useRef(handlePlayPause);
+  useEffect(() => {
+    handlePlayPauseRef.current = handlePlayPause;
+  });
+  const togglePlayPauseAtCurrentPosition = useCallback(() => {
+    void handlePlayPauseRef.current();
+  }, []);
+
   // Stable reference so KeyboardController's window listener isn't torn down
   // and re-attached on every render (position updates ~60x/sec while playing).
   const keyboardControls = useMemo(
@@ -266,8 +278,8 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
       },
       {
         key: "Alt",
-        description: "Pause playback",
-        handler: handlePause,
+        description: "Play/pause at current position",
+        handler: togglePlayPauseAtCurrentPosition,
       },
     ],
     [
@@ -275,7 +287,7 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
       moveCursorLeft,
       moveCursorRight,
       setCursorToCurrentPosition,
-      handlePause,
+      togglePlayPauseAtCurrentPosition,
     ],
   );
 
