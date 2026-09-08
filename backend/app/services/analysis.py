@@ -1,9 +1,11 @@
 import logging
 from pathlib import Path
-from app.models import SongAnalysis
 
 import librosa
 import numpy as np
+
+from app.models import SongAnalysis
+from app.paths import STEM_NAMES
 
 logger = logging.getLogger(__name__)
 
@@ -53,3 +55,25 @@ def save_analysis(path: Path, output_path: Path) -> SongAnalysis:
     output_path.write_text(result.model_dump_json())
     logger.info("Analysis for %s: %s -> %s", path, result, output_path)
     return result
+
+
+def find_original_file(folder: Path) -> Path | None:
+    """The one file in a job/song folder that isn't a stem or a JSON sidecar."""
+    for entry in folder.iterdir():
+        if not entry.is_file() or entry.name.startswith("."):
+            continue
+        if entry.stem in STEM_NAMES or entry.suffix == ".json":
+            continue
+        return entry
+    return None
+
+
+def run_analysis_for_folder(input_path: Path, folder: Path, context: str) -> str | None:
+    """Best-effort: analysis failure shouldn't sink an otherwise-successful separation."""
+    analysis_path = folder / "analysis.json"
+    try:
+        save_analysis(input_path, analysis_path)
+    except Exception:  # noqa: BLE001
+        logger.warning("%s: analysis failed", context, exc_info=True)
+        return None
+    return str(analysis_path)

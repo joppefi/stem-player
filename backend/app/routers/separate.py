@@ -8,11 +8,12 @@ from fastapi import APIRouter, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 
 from app import jobs
-from app.models import Job, JobStatus, SongAnalysis, SongSummary
+from app.models import Job, SongAnalysis
 from app.naming import sanitize_name, unique_dir
-from app.paths import DATA_DIR
+from app.paths import DATA_DIR, STEM_NAMES
 from app.pubsub import publish_update
-from app.services.analysis import save_analysis
+from app.routers.songs import _find_song_dir
+from app.services.analysis import find_original_file, run_analysis_for_folder
 from app.services.demucs import separate as run_separation
 from app.services.waveform import generate_waveform_png
 from app.services.youtube import DownloadError, download_audio, probe
@@ -44,7 +45,6 @@ ALLOWED_CONTENT_TYPES = {
 }
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # ~15 min of typical compressed audio
 DEFAULT_MODEL = "htdemucs"
-STEM_NAMES = ("vocals", "drums", "bass", "other")
 YOUTUBE_URL_RE = re.compile(
     r"^https?://(?:www\.)?(?:youtube\.com/(?:watch\?v=|shorts/)|youtu\.be/)"
     r"(?P<video_id>[A-Za-z0-9_-]{11})",
@@ -65,47 +65,12 @@ def _resolve_youtube_input(raw: str) -> tuple[str, str] | None:
     return None
 
 
-def _find_song_dir(song_id: str) -> Path | None:
-    """Find a DATA_DIR folder ending in '(<song_id>)' with all 4 stems present."""
-    if not DATA_DIR.exists():
-        return None
-    suffix = f"({song_id})"
-    for entry in DATA_DIR.iterdir():
-        if not entry.is_dir() or not entry.name.endswith(suffix):
-            continue
-        if all((entry / f"{name}.wav").is_file() for name in STEM_NAMES):
-            return entry
-    return None
-
-
 def _find_existing_stems(video_id: str) -> dict[str, str] | None:
     """Look for a folder already named '... (<video_id>)' with all stems present."""
     job_dir = _find_song_dir(video_id)
     if job_dir is None:
         return None
     return {name: str(job_dir / f"{name}.wav") for name in STEM_NAMES}
-
-
-def _find_original_file(job_dir: Path) -> Path | None:
-    """The one file in a job folder that isn't a stem or a generated JSON sidecar."""
-    for entry in job_dir.iterdir():
-        if not entry.is_file() or entry.name.startswith("."):
-            continue
-        if entry.stem in STEM_NAMES or entry.suffix == ".json":
-            continue
-        return entry
-    return None
-
-
-def _run_analysis(input_path: Path, job_dir: Path, job_id: str) -> str | None:
-    """Best-effort: analysis failure shouldn't sink an otherwise-successful separation."""
-    analysis_path = job_dir / "analysis.json"
-    try:
-        save_analysis(input_path, analysis_path)
-    except Exception:  # noqa: BLE001
-        logger.warning("Job %s: analysis failed", job_id, exc_info=True)
-        return None
-    return str(analysis_path)
 
 
 @router.post("/api/separate", status_code=202)
@@ -162,7 +127,7 @@ async def create_separation(
         def run() -> None:
             try:
                 stem_paths = run_separation(input_path, job_dir, model, progress_cb)
-                analysis_path = _run_analysis(input_path, job_dir, job.id)
+                analysis_path = run_analysis_for_folder(input_path, job_dir, f"Job {job.id}")
                 loop.call_soon_threadsafe(
                     _on_done,
                     job.id,
@@ -203,7 +168,7 @@ async def create_separation(
                 )
                 input_path = download_audio(resolved_url, job_dir, download_progress_cb)
                 stem_paths = run_separation(input_path, job_dir, model, progress_cb)
-                analysis_path = _run_analysis(input_path, job_dir, job.id)
+                analysis_path = run_analysis_for_folder(input_path, job_dir, f"Job {job.id}")
                 loop.call_soon_threadsafe(
                     _on_done,
                     job.id,
@@ -250,56 +215,6 @@ def _on_error(job_id: str, error: str) -> None:
 @router.get("/api/jobs", response_model=list[Job])
 def list_jobs() -> list[Job]:
     return jobs.list_jobs()
-
-
-@router.get("/api/songs", response_model=list[SongSummary])
-def list_songs() -> list[SongSummary]:
-    """List every already-separated song: a DATA_DIR subfolder with all 4 stems."""
-    if not DATA_DIR.exists():
-        return []
-
-    entries: list[tuple[float, SongSummary]] = []
-    for entry in DATA_DIR.iterdir():
-        if not entry.is_dir():
-            continue
-        if not all((entry / f"{name}.wav").is_file() for name in STEM_NAMES):
-            continue
-        try:
-            mtime = entry.stat().st_mtime
-        except FileNotFoundError:
-            continue
-        has_analysis = (entry / "analysis.json").is_file()
-        entries.append(
-            (
-                mtime,
-                SongSummary(
-                    name=entry.name, stems=list(STEM_NAMES), has_analysis=has_analysis
-                ),
-            )
-        )
-
-    entries.sort(key=lambda pair: pair[0], reverse=True)
-    return [summary for _, summary in entries]
-
-
-@router.get("/api/songs/{song_id}", response_model=Job)
-def get_song(song_id: str) -> Job:
-    """Look up an already-separated song by the trailing id in its folder name."""
-    job_dir = _find_song_dir(song_id)
-    if job_dir is None:
-        raise HTTPException(status_code=404, detail="Song not found")
-
-    stem_paths = {name: str(job_dir / f"{name}.wav") for name in STEM_NAMES}
-    analysis_path = job_dir / "analysis.json"
-    return Job(
-        id=song_id,
-        status=JobStatus.DONE,
-        progress=1.0,
-        title=job_dir.name,
-        stem_paths=stem_paths,
-        analysis_path=str(analysis_path) if analysis_path.is_file() else None,
-        created_at=job_dir.stat().st_mtime,
-    )
 
 
 @router.get("/api/jobs/{job_id}", response_model=Job)
@@ -364,14 +279,14 @@ def get_analysis(job_id: str) -> SongAnalysis:
         raise HTTPException(status_code=404, detail="Stems not ready")
 
     job_dir = Path(next(iter(job.stem_paths.values()))).parent
-    original = _find_original_file(job_dir)
+    original = find_original_file(job_dir)
     if original is None:
         raise HTTPException(
             status_code=404, detail="Original audio not found for analysis"
         )
 
     logger.info("Job %s: analysis missing, generating on request", job_id)
-    analysis_path = _run_analysis(original, job_dir, job_id)
+    analysis_path = run_analysis_for_folder(original, job_dir, f"Job {job_id}")
     if analysis_path is None:
         raise HTTPException(status_code=500, detail="Analysis failed")
 

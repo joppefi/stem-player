@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.paths import DATA_DIR
-from app.routers import separate, ws
+from app.routers import separate, songs, ws
 from app.routers.separate import shutdown_executor
 
 logging.basicConfig(
@@ -27,6 +27,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Stem Player", lifespan=lifespan)
 
 app.include_router(separate.router)
+app.include_router(songs.router)
 app.include_router(ws.router)
 
 
