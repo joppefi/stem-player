@@ -5,17 +5,15 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from fastapi import APIRouter, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, Response
 
 from app import jobs
-from app.models import Job, SongAnalysis
+from app.models import Job
 from app.naming import sanitize_name, unique_dir
 from app.paths import DATA_DIR, STEM_NAMES
 from app.pubsub import publish_update
 from app.routers.songs import _find_song_dir
-from app.services.analysis import find_original_file, run_analysis_for_folder
+from app.services.analysis import run_analysis_for_folder
 from app.services.demucs import separate as run_separation
-from app.services.waveform import generate_waveform_png
 from app.services.youtube import DownloadError, download_audio, probe
 
 logger = logging.getLogger(__name__)
@@ -226,69 +224,3 @@ def get_job(job_id: str) -> Job:
         job_dir = Path(next(iter(job.stem_paths.values()))).parent
         job = jobs.update_job(job_id, title=job_dir.name) or job
     return job
-
-
-def _resolve_stem_path(job_id: str, stem_name: str) -> Path | None:
-    """job_id may be a real in-memory job, or a song's trailing folder id
-    (e.g. reached via /api/songs/{id} -- there's no job-store entry for
-    those). Try the job store first, then fall back to a folder lookup."""
-    job = jobs.get_job(job_id)
-    if job is not None:
-        if job.stem_paths is None or stem_name not in job.stem_paths:
-            return None
-        return Path(job.stem_paths[stem_name])
-
-    if stem_name not in STEM_NAMES:
-        return None
-    song_dir = _find_song_dir(job_id)
-    if song_dir is None:
-        return None
-    stem_path = song_dir / f"{stem_name}.wav"
-    return stem_path if stem_path.is_file() else None
-
-
-@router.get("/api/jobs/{job_id}/stems/{stem_name}")
-def get_stem(job_id: str, stem_name: str) -> FileResponse:
-    stem_path = _resolve_stem_path(job_id, stem_name)
-    if stem_path is None:
-        raise HTTPException(status_code=404, detail="Stem not found")
-    return FileResponse(stem_path, media_type="audio/wav")
-
-
-@router.get("/api/jobs/{job_id}/stems/{stem_name}/waveform")
-def get_waveform(
-    job_id: str, stem_name: str, width: int = 600, height: int = 80
-) -> Response:
-    stem_path = _resolve_stem_path(job_id, stem_name)
-    if stem_path is None:
-        raise HTTPException(status_code=404, detail="Stem not found")
-    png_bytes = generate_waveform_png(stem_path, width, height)
-    return Response(content=png_bytes, media_type="image/png")
-
-
-@router.get("/api/jobs/{job_id}/analysis", response_model=SongAnalysis)
-def get_analysis(job_id: str) -> SongAnalysis:
-    job = jobs.get_job(job_id)
-    if job is None:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    if job.analysis_path is not None:
-        return FileResponse(job.analysis_path, media_type="application/json")
-
-    if job.stem_paths is None:
-        raise HTTPException(status_code=404, detail="Stems not ready")
-
-    job_dir = Path(next(iter(job.stem_paths.values()))).parent
-    original = find_original_file(job_dir)
-    if original is None:
-        raise HTTPException(
-            status_code=404, detail="Original audio not found for analysis"
-        )
-
-    logger.info("Job %s: analysis missing, generating on request", job_id)
-    analysis_path = run_analysis_for_folder(original, job_dir, f"Job {job_id}")
-    if analysis_path is None:
-        raise HTTPException(status_code=500, detail="Analysis failed")
-
-    jobs.update_job(job_id, analysis_path=analysis_path)
-    return FileResponse(analysis_path, media_type="application/json")

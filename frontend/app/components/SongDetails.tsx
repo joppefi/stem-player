@@ -1,13 +1,13 @@
 import React from "react";
 import Field from "./Field";
-import { useGetAnalysis } from "~/api/hooks.generated";
+import { useGetSongAnalysis } from "~/api/hooks.generated";
 
 type SongDetailsProps = {
-  jobId: string;
+  songId: string;
 };
 
-function SongDetails({ jobId }: SongDetailsProps) {
-  const { data, loading } = useGetAnalysis(jobId);
+function SongDetails({ songId }: SongDetailsProps) {
+  const { data, loading } = useGetSongAnalysis(songId);
 
   return (
     <div className="flex-row flex gap-4">

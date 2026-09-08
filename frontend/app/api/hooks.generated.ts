@@ -11,6 +11,11 @@ export function useListJobs() {
   return useApi<operations["list_jobs_api_jobs_get"]["responses"]["200"]["content"]["application/json"]>("/api/jobs");
 }
 
+export function useGetJob(jobId: string | null) {
+  const url = jobId !== null ? `/api/jobs/${jobId}` : null;
+  return useApi<operations["get_job_api_jobs__job_id__get"]["responses"]["200"]["content"]["application/json"]>(url);
+}
+
 export function useListSongs() {
   return useApi<operations["list_songs_api_songs_get"]["responses"]["200"]["content"]["application/json"]>("/api/songs");
 }
@@ -20,14 +25,9 @@ export function useGetSong(songId: string | null) {
   return useApi<operations["get_song_api_songs__song_id__get"]["responses"]["200"]["content"]["application/json"]>(url);
 }
 
-export function useGetJob(jobId: string | null) {
-  const url = jobId !== null ? `/api/jobs/${jobId}` : null;
-  return useApi<operations["get_job_api_jobs__job_id__get"]["responses"]["200"]["content"]["application/json"]>(url);
-}
-
-export function useGetAnalysis(jobId: string | null) {
-  const url = jobId !== null ? `/api/jobs/${jobId}/analysis` : null;
-  return useApi<operations["get_analysis_api_jobs__job_id__analysis_get"]["responses"]["200"]["content"]["application/json"]>(url);
+export function useGetSongAnalysis(songId: string | null) {
+  const url = songId !== null ? `/api/songs/${songId}/analysis` : null;
+  return useApi<operations["get_song_analysis_api_songs__song_id__analysis_get"]["responses"]["200"]["content"]["application/json"]>(url);
 }
 
 export function useHealth() {

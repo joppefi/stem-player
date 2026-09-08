@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Job */
+        get: operations["get_job_api_jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/songs": {
         parameters: {
             query?: never;
@@ -78,15 +95,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/jobs/{job_id}": {
+    "/api/songs/{song_id}/stems/{stem_name}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get Job */
-        get: operations["get_job_api_jobs__job_id__get"];
+        /** Get Song Stem */
+        get: operations["get_song_stem_api_songs__song_id__stems__stem_name__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -95,15 +112,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/jobs/{job_id}/stems/{stem_name}": {
+    "/api/songs/{song_id}/stems/{stem_name}/waveform": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get Stem */
-        get: operations["get_stem_api_jobs__job_id__stems__stem_name__get"];
+        /** Get Song Waveform */
+        get: operations["get_song_waveform_api_songs__song_id__stems__stem_name__waveform_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -112,32 +129,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/jobs/{job_id}/stems/{stem_name}/waveform": {
+    "/api/songs/{song_id}/analysis": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get Waveform */
-        get: operations["get_waveform_api_jobs__job_id__stems__stem_name__waveform_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/jobs/{job_id}/analysis": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Analysis */
-        get: operations["get_analysis_api_jobs__job_id__analysis_get"];
+        /** Get Song Analysis */
+        get: operations["get_song_analysis_api_songs__song_id__analysis_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -318,6 +318,37 @@ export interface operations {
             };
         };
     };
+    get_job_api_jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Job"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_songs_api_songs_get: {
         parameters: {
             query?: never;
@@ -369,43 +400,12 @@ export interface operations {
             };
         };
     };
-    get_job_api_jobs__job_id__get: {
+    get_song_stem_api_songs__song_id__stems__stem_name__get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                job_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Job"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_stem_api_jobs__job_id__stems__stem_name__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                job_id: string;
+                song_id: string;
                 stem_name: string;
             };
             cookie?: never;
@@ -432,7 +432,7 @@ export interface operations {
             };
         };
     };
-    get_waveform_api_jobs__job_id__stems__stem_name__waveform_get: {
+    get_song_waveform_api_songs__song_id__stems__stem_name__waveform_get: {
         parameters: {
             query?: {
                 width?: number;
@@ -440,7 +440,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                job_id: string;
+                song_id: string;
                 stem_name: string;
             };
             cookie?: never;
@@ -467,12 +467,12 @@ export interface operations {
             };
         };
     };
-    get_analysis_api_jobs__job_id__analysis_get: {
+    get_song_analysis_api_songs__song_id__analysis_get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                job_id: string;
+                song_id: string;
             };
             cookie?: never;
         };
