@@ -21,13 +21,18 @@ const KEY_LABELS: Record<string, string> = {
 };
 
 function formatKeyLabel(key: string): string {
-  return KEY_LABELS[key] ?? (key.length === 1 ? key.toUpperCase() : key);
+  return KEY_LABELS[key]?.toUpperCase() ?? key.toUpperCase();
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   const tag = target.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
+  return (
+    tag === "INPUT" ||
+    tag === "TEXTAREA" ||
+    tag === "SELECT" ||
+    target.isContentEditable
+  );
 }
 
 function KeyboardController({ controls }: KeyboardControllerProps) {
