@@ -10,6 +10,7 @@ interface StemPlayerProps {
 }
 
 const SPEED_OPTIONS = [0.5, 0.75, 0.8, 0.85, 0.9, 0.95, 1];
+const CURSOR_STEP_SECONDS = 5;
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
@@ -210,6 +211,35 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
     setMuted((prev) => ({ ...prev, [name]: next }));
   }
 
+  // Mirrors state that changes every animation frame during playback (position)
+  // so the W/S/D handlers below can read the latest values without needing to
+  // be recreated on every tick -- keeps them (and keyboardControls' identity)
+  // stable, same reasoning as the comment above it.
+  const latestRef = useRef({ cursor, position, duration });
+  useEffect(() => {
+    latestRef.current = { cursor, position, duration };
+  });
+
+  const moveCursorLeft = useCallback(() => {
+    const { cursor, position, duration } = latestRef.current;
+    if (duration <= 0) return;
+    const base = cursor === null ? position / duration : cursor;
+    setCursor(Math.max(0, base - CURSOR_STEP_SECONDS / duration));
+  }, []);
+
+  const moveCursorRight = useCallback(() => {
+    const { cursor, position, duration } = latestRef.current;
+    if (duration <= 0) return;
+    const base = cursor === null ? position / duration : cursor;
+    setCursor(Math.min(1, base + CURSOR_STEP_SECONDS / duration));
+  }, []);
+
+  const setCursorToCurrentPosition = useCallback(() => {
+    const { position, duration } = latestRef.current;
+    if (duration <= 0) return;
+    setCursor(position / duration);
+  }, []);
+
   // Stable reference so KeyboardController's window listener isn't torn down
   // and re-attached on every render (position updates ~60x/sec while playing).
   const keyboardControls = useMemo(
@@ -219,8 +249,23 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
         description: "Play from cursor",
         handler: () => void handlePlayFromCursor(),
       },
+      {
+        key: "w",
+        description: "Move cursor left",
+        handler: moveCursorLeft,
+      },
+      {
+        key: "s",
+        description: "Set cursor to current position",
+        handler: setCursorToCurrentPosition,
+      },
+      {
+        key: "d",
+        description: "Move cursor right",
+        handler: moveCursorRight,
+      },
     ],
-    [handlePlayFromCursor],
+    [handlePlayFromCursor, moveCursorLeft, moveCursorRight, setCursorToCurrentPosition],
   );
 
   if (loadError) {
