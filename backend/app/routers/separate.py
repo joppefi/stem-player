@@ -8,7 +8,7 @@ from fastapi import APIRouter, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 
 from app import jobs
-from app.models import Job, SongAnalysis, SongSummary
+from app.models import Job, JobStatus, SongAnalysis, SongSummary
 from app.naming import sanitize_name, unique_dir
 from app.paths import DATA_DIR
 from app.pubsub import publish_update
@@ -65,18 +65,25 @@ def _resolve_youtube_input(raw: str) -> tuple[str, str] | None:
     return None
 
 
-def _find_existing_stems(video_id: str) -> dict[str, str] | None:
-    """Look for a folder already named '... (<video_id>)' with all stems present."""
+def _find_song_dir(song_id: str) -> Path | None:
+    """Find a DATA_DIR folder ending in '(<song_id>)' with all 4 stems present."""
     if not DATA_DIR.exists():
         return None
-    suffix = f"({video_id})"
+    suffix = f"({song_id})"
     for entry in DATA_DIR.iterdir():
         if not entry.is_dir() or not entry.name.endswith(suffix):
             continue
-        stem_paths = {name: entry / f"{name}.wav" for name in STEM_NAMES}
-        if all(path.is_file() for path in stem_paths.values()):
-            return {name: str(path) for name, path in stem_paths.items()}
+        if all((entry / f"{name}.wav").is_file() for name in STEM_NAMES):
+            return entry
     return None
+
+
+def _find_existing_stems(video_id: str) -> dict[str, str] | None:
+    """Look for a folder already named '... (<video_id>)' with all stems present."""
+    job_dir = _find_song_dir(video_id)
+    if job_dir is None:
+        return None
+    return {name: str(job_dir / f"{name}.wav") for name in STEM_NAMES}
 
 
 def _find_original_file(job_dir: Path) -> Path | None:
@@ -273,6 +280,26 @@ def list_songs() -> list[SongSummary]:
 
     entries.sort(key=lambda pair: pair[0], reverse=True)
     return [summary for _, summary in entries]
+
+
+@router.get("/api/songs/{song_id}", response_model=Job)
+def get_song(song_id: str) -> Job:
+    """Look up an already-separated song by the trailing id in its folder name."""
+    job_dir = _find_song_dir(song_id)
+    if job_dir is None:
+        raise HTTPException(status_code=404, detail="Song not found")
+
+    stem_paths = {name: str(job_dir / f"{name}.wav") for name in STEM_NAMES}
+    analysis_path = job_dir / "analysis.json"
+    return Job(
+        id=song_id,
+        status=JobStatus.DONE,
+        progress=1.0,
+        title=job_dir.name,
+        stem_paths=stem_paths,
+        analysis_path=str(analysis_path) if analysis_path.is_file() else None,
+        created_at=job_dir.stat().st_mtime,
+    )
 
 
 @router.get("/api/jobs/{job_id}", response_model=Job)
