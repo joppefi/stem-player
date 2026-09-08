@@ -36,17 +36,21 @@ export default function SongPage() {
     <main className="min-h-screen flex flex-col items-center justify-center gap-8 p-6">
       <div className="text-center">
         {song.title && (
-          <h1 className="text-2xl font-semibold break-words max-w-xl">{song.title}</h1>
+          <h1 className="text-2xl font-semibold break-words max-w-xl">
+            {song.title}
+          </h1>
         )}
-        <p className="text-sm text-gray-500 dark:text-gray-400">Stems ready</p>
-        <Link to="/" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
-          Separate another song
-        </Link>
       </div>
       <SongDetails songId={songId} />
       <div className="w-full max-w-xl">
         <StemPlayer songId={songId} stemPaths={song.stem_paths} />
       </div>
+      <Link
+        to="/"
+        className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+      >
+        Back home
+      </Link>
     </main>
   );
 }
@@ -55,9 +59,14 @@ function ErrorScreen({ message }: { message: string }) {
   return (
     <Centered>
       <div className="text-center flex flex-col gap-3">
-        <h1 className="text-xl font-semibold text-red-600 dark:text-red-400">Not found</h1>
+        <h1 className="text-xl font-semibold text-red-600 dark:text-red-400">
+          Not found
+        </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">{message}</p>
-        <Link to="/" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+        <Link
+          to="/"
+          className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+        >
           Back home
         </Link>
       </div>
@@ -66,5 +75,9 @@ function ErrorScreen({ message }: { message: string }) {
 }
 
 function Centered({ children }: { children: React.ReactNode }) {
-  return <main className="min-h-screen flex items-center justify-center p-6">{children}</main>;
+  return (
+    <main className="min-h-screen flex items-center justify-center p-6">
+      {children}
+    </main>
+  );
 }
