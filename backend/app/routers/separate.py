@@ -313,26 +313,41 @@ def get_job(job_id: str) -> Job:
     return job
 
 
+def _resolve_stem_path(job_id: str, stem_name: str) -> Path | None:
+    """job_id may be a real in-memory job, or a song's trailing folder id
+    (e.g. reached via /api/songs/{id} -- there's no job-store entry for
+    those). Try the job store first, then fall back to a folder lookup."""
+    job = jobs.get_job(job_id)
+    if job is not None:
+        if job.stem_paths is None or stem_name not in job.stem_paths:
+            return None
+        return Path(job.stem_paths[stem_name])
+
+    if stem_name not in STEM_NAMES:
+        return None
+    song_dir = _find_song_dir(job_id)
+    if song_dir is None:
+        return None
+    stem_path = song_dir / f"{stem_name}.wav"
+    return stem_path if stem_path.is_file() else None
+
+
 @router.get("/api/jobs/{job_id}/stems/{stem_name}")
 def get_stem(job_id: str, stem_name: str) -> FileResponse:
-    job = jobs.get_job(job_id)
-    if job is None:
-        raise HTTPException(status_code=404, detail="Job not found")
-    if job.stem_paths is None or stem_name not in job.stem_paths:
-        raise HTTPException(status_code=404, detail="Stem not ready")
-    return FileResponse(job.stem_paths[stem_name], media_type="audio/wav")
+    stem_path = _resolve_stem_path(job_id, stem_name)
+    if stem_path is None:
+        raise HTTPException(status_code=404, detail="Stem not found")
+    return FileResponse(stem_path, media_type="audio/wav")
 
 
 @router.get("/api/jobs/{job_id}/stems/{stem_name}/waveform")
 def get_waveform(
     job_id: str, stem_name: str, width: int = 600, height: int = 80
 ) -> Response:
-    job = jobs.get_job(job_id)
-    if job is None:
-        raise HTTPException(status_code=404, detail="Job not found")
-    if job.stem_paths is None or stem_name not in job.stem_paths:
-        raise HTTPException(status_code=404, detail="Stem not ready")
-    png_bytes = generate_waveform_png(Path(job.stem_paths[stem_name]), width, height)
+    stem_path = _resolve_stem_path(job_id, stem_name)
+    if stem_path is None:
+        raise HTTPException(status_code=404, detail="Stem not found")
+    png_bytes = generate_waveform_png(stem_path, width, height)
     return Response(content=png_bytes, media_type="image/png")
 
 
