@@ -43,7 +43,7 @@ export default function SongPage() {
         </Link>
       </div>
       <div className="w-full max-w-xl">
-        <StemPlayer jobId={songId} stemPaths={song.stem_paths} />
+        <StemPlayer songId={songId} stemPaths={song.stem_paths} />
       </div>
     </main>
   );

@@ -1,9 +1,16 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import type { Route } from "./+types/job";
-import StemPlayer from "../components/StemPlayer";
 import type { Job } from "../types";
-import SongDetails from "~/components/SongDetails";
+
+// Folders (and thus song ids) are named "<title> (<id>)" -- once a job is
+// done, its stems live at the same id, playable via the /songs/:id route.
+const SONG_ID_RE = /\(([^()]+)\)\s*$/;
+
+function extractSongId(title: string | null): string | null {
+  if (!title) return null;
+  return SONG_ID_RE.exec(title)?.[1] ?? null;
+}
 
 export function meta({}: Route.MetaArgs) {
   return [{ title: "Separating… — Stem Player" }];
@@ -95,9 +102,10 @@ export default function JobPage() {
   }
 
   if (job.status === "done" && job.stem_paths) {
+    const songId = extractSongId(job.title);
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center gap-8 p-6">
-        <div className="text-center">
+      <Centered>
+        <div className="text-center flex flex-col gap-3">
           {job.title && (
             <h1 className="text-2xl font-semibold break-words max-w-xl">
               {job.title}
@@ -106,18 +114,23 @@ export default function JobPage() {
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Stems ready
           </p>
-          <Link
-            to="/"
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            Separate another song
-          </Link>
+          {songId ? (
+            <Link
+              to={`/songs/${songId}`}
+              className="rounded-md bg-blue-600 text-white text-sm font-medium px-4 py-2"
+            >
+              Listen
+            </Link>
+          ) : (
+            <Link
+              to="/"
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Back home
+            </Link>
+          )}
         </div>
-        <div className="w-full max-w-xl">
-          <SongDetails jobId={jobId} />
-          <StemPlayer jobId={jobId} stemPaths={job.stem_paths} />
-        </div>
-      </main>
+      </Centered>
     );
   }
 

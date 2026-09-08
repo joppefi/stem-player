@@ -1,7 +1,7 @@
 import { useRef } from "react";
 
 interface WaveformProps {
-  jobId: string;
+  songId: string;
   stemName: string;
   progress: number; // 0..1
   onSeek: (ratio: number) => void;
@@ -15,7 +15,7 @@ const IMAGE_WIDTH = 600;
 const IMAGE_HEIGHT = 64;
 
 export default function Waveform({
-  jobId,
+  songId,
   stemName,
   progress,
   onSeek,
@@ -26,7 +26,7 @@ export default function Waveform({
 }: WaveformProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const src = `/api/jobs/${jobId}/stems/${stemName}/waveform?width=${IMAGE_WIDTH}&height=${IMAGE_HEIGHT}`;
+  const src = `/api/songs/${songId}/stems/${stemName}/waveform?width=${IMAGE_WIDTH}&height=${IMAGE_HEIGHT}`;
   const clampedProgress = Math.min(1, Math.max(0, progress || 0));
 
   function ratioFromClientX(clientX: number): number | null {

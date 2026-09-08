@@ -4,7 +4,7 @@ import { STEM_NAMES } from "../types";
 import Waveform from "./Waveform";
 
 interface StemPlayerProps {
-  jobId: string;
+  songId: string;
   stemPaths: Record<string, string>;
 }
 
@@ -17,7 +17,7 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
-export default function StemPlayer({ jobId, stemPaths }: StemPlayerProps) {
+export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
   const stems = STEM_NAMES.filter((name) => stemPaths[name]);
 
   const playersRef = useRef<Record<string, Tone.Player>>({});
@@ -65,7 +65,7 @@ export default function StemPlayer({ jobId, stemPaths }: StemPlayerProps) {
     for (const name of stems) {
       const pitchShift = new Tone.PitchShift().toDestination();
       const player = new Tone.Player({
-        url: `/api/jobs/${jobId}/stems/${name}`,
+        url: `/api/songs/${songId}/stems/${name}`,
         onload: () => {
           if (cancelled) return;
           loadedCount += 1;
@@ -104,7 +104,7 @@ export default function StemPlayer({ jobId, stemPaths }: StemPlayerProps) {
       pitchShiftsRef.current = {};
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobId]);
+  }, [songId]);
 
   // Force Tone's synced players to (re)anchor at exactly `songPosition`: setting
   // Transport.seconds while started makes Tone internally stop+restart every
@@ -298,7 +298,7 @@ export default function StemPlayer({ jobId, stemPaths }: StemPlayerProps) {
             </div>
             <div key={name} className="flex items-center gap-3">
               <Waveform
-                jobId={jobId}
+                songId={songId}
                 stemName={name}
                 progress={duration > 0 ? position / duration : 0}
                 onSeek={(ratio) => handleSeek(ratio * duration)}
