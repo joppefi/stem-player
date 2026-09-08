@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as Tone from "tone";
 import { STEM_NAMES } from "../types";
 import Waveform from "./Waveform";
+import KeyboardController from "./KeyboardController";
 
 interface StemPlayerProps {
   songId: string;
@@ -178,7 +179,8 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
 
   const handlePlayFromCursor = useCallback(async () => {
     await Tone.start();
-    const target = cursor === null ? 0 : Math.min(1, Math.max(0, cursor)) * duration;
+    const target =
+      cursor === null ? 0 : Math.min(1, Math.max(0, cursor)) * duration;
     resyncTransport(target);
     Tone.getTransport().start();
     setIsPlaying(true);
@@ -207,6 +209,19 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
     player.mute = next;
     setMuted((prev) => ({ ...prev, [name]: next }));
   }
+
+  // Stable reference so KeyboardController's window listener isn't torn down
+  // and re-attached on every render (position updates ~60x/sec while playing).
+  const keyboardControls = useMemo(
+    () => [
+      {
+        key: " ",
+        description: "Play from cursor",
+        handler: () => void handlePlayFromCursor(),
+      },
+    ],
+    [handlePlayFromCursor],
+  );
 
   if (loadError) {
     return (
@@ -310,6 +325,8 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
           </div>
         ))}
       </div>
+
+      <KeyboardController controls={keyboardControls} />
     </div>
   );
 }
