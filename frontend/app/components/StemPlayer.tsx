@@ -1,23 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as Tone from "tone";
 import { STEM_NAMES } from "../types";
-import Waveform from "./Waveform";
+import IconButton from "./IconButton";
 import KeyboardController from "./KeyboardController";
+import PlaybackSpeedSelect from "./PlaybackSpeedSelect";
+import SeekBar from "./SeekBar";
+import StemRow from "./StemRow";
+import TimeLabel from "./TimeLabel";
 
 interface StemPlayerProps {
   songId: string;
   stemPaths: Record<string, string>;
 }
 
-const SPEED_OPTIONS = [0.5, 0.75, 0.8, 0.85, 0.9, 0.95, 1];
 const CURSOR_STEP_SECONDS = 0.1;
-
-function formatTime(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
-}
 
 export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
   const stems = STEM_NAMES.filter((name) => stemPaths[name]);
@@ -302,95 +298,56 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center gap-3">
-        <button
-          type="button"
+        <IconButton
           onClick={() => void handlePlayPause()}
           disabled={!ready}
-          aria-label={isPlaying ? "Pause" : "Play"}
-          className="shrink-0 rounded-full w-10 h-10 flex items-center justify-center bg-blue-600 text-white disabled:opacity-50"
+          ariaLabel={isPlaying ? "Pause" : "Play"}
+          color="blue"
         >
           {isPlaying ? "❚❚" : "▶"}
-        </button>
-        <button
-          type="button"
+        </IconButton>
+        <IconButton
           onClick={() => void handlePlayFromCursor()}
           disabled={!ready}
-          aria-label="Play from cursor"
+          ariaLabel="Play from cursor"
           title="Play from cursor"
-          className="shrink-0 rounded-full w-10 h-10 flex items-center justify-center bg-amber-500 text-white disabled:opacity-50"
+          color="amber"
         >
           ▶
-        </button>
-        <span className="text-xs tabular-nums text-gray-500 dark:text-gray-400 w-10 text-right">
-          {formatTime(position)}
-        </span>
-        <input
-          type="range"
-          min={0}
+        </IconButton>
+        <TimeLabel seconds={position} align="right" />
+        <SeekBar
+          value={position}
           max={duration || 0}
-          step={0.01}
-          value={Math.min(position, duration || 0)}
           disabled={!ready}
-          onPointerDown={() => {
+          onChange={handleSeek}
+          onSeekStart={() => {
             seekingRef.current = true;
           }}
-          onPointerUp={() => {
+          onSeekEnd={() => {
             seekingRef.current = false;
           }}
-          onChange={(e) => handleSeek(Number(e.target.value))}
-          className="flex-1 accent-blue-600"
         />
-        <span className="text-xs tabular-nums text-gray-500 dark:text-gray-400 w-10">
-          {formatTime(duration)}
-        </span>
-        <select
-          value={speed}
-          onChange={(e) => handleSpeedChange(Number(e.target.value))}
-          disabled={!ready}
-          aria-label="Playback speed"
-          title="Playback speed (pitch preserved)"
-          className="shrink-0 rounded-md border border-gray-300 dark:border-gray-700 bg-transparent text-xs px-1.5 py-1 disabled:opacity-50"
-        >
-          {SPEED_OPTIONS.map((option) => (
-            <option key={option} value={option}>
-              {option}x
-            </option>
-          ))}
-        </select>
+        <TimeLabel seconds={duration} />
+        <PlaybackSpeedSelect value={speed} onChange={handleSpeedChange} disabled={!ready} />
       </div>
 
       {!ready && <p className="text-xs text-gray-400">Loading audio…</p>}
 
       <div className="flex flex-col gap-2">
         {stems.map((name) => (
-          <div className="flex flex-col gap-2">
-            <div key={name} className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => toggleMute(name)}
-                className={`text-xs font-medium rounded px-2 py-1 border shrink-0 ${
-                  muted[name]
-                    ? "border-red-400 text-red-500 bg-red-50 dark:bg-red-950/30"
-                    : "border-gray-300 dark:border-gray-700"
-                }`}
-              >
-                {muted[name] ? "🔇" : "🔈"}
-              </button>
-              <span className="text-sm capitalize w-14 shrink-0">{name}</span>
-            </div>
-            <div key={name} className="flex items-center gap-3">
-              <Waveform
-                songId={songId}
-                stemName={name}
-                progress={duration > 0 ? position / duration : 0}
-                onSeek={(ratio) => handleSeek(ratio * duration)}
-                onDoubleClick={(ratio) => setCursor(ratio)}
-                cursor={cursor}
-                disabled={!ready}
-                muted={muted[name]}
-              />
-            </div>
-          </div>
+          <StemRow
+            key={name}
+            songId={songId}
+            name={name}
+            muted={muted[name]}
+            onToggleMute={() => toggleMute(name)}
+            progress={duration > 0 ? position / duration : 0}
+            onSeek={(ratio) => handleSeek(ratio * duration)}
+            onDoubleClick={(ratio) => setCursor(ratio)}
+            cursor={cursor}
+            disabled={!ready}
+          />
         ))}
       </div>
 
