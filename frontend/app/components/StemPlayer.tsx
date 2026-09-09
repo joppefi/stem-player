@@ -313,7 +313,7 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
           title="Play from cursor"
           color="amber"
         >
-          ▶
+          ❚▶
         </IconButton>
         <TimeLabel seconds={position} align="right" />
         <SeekBar
@@ -329,7 +329,11 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
           }}
         />
         <TimeLabel seconds={duration} />
-        <PlaybackSpeedSelect value={speed} onChange={handleSpeedChange} disabled={!ready} />
+        <PlaybackSpeedSelect
+          value={speed}
+          onChange={handleSpeedChange}
+          disabled={!ready}
+        />
       </div>
 
       {!ready && <p className="text-xs text-gray-400">Loading audio…</p>}
