@@ -41,13 +41,18 @@ def _detect_key(chroma_mean: np.ndarray) -> str:
 def analyze_audio(path: Path) -> SongAnalysis:
     y, sr = librosa.load(str(path), sr=None, mono=True)
 
-    tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
+    tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
     bpm = round(float(np.asarray(tempo).item()), 1)
+
+    if len(beat_frames) > 0:
+        first_beat = round(float(librosa.frames_to_time(beat_frames[0], sr=sr)), 3)
+    else:
+        first_beat = 0.0
 
     chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
     key = _detect_key(chroma.mean(axis=1))
 
-    return SongAnalysis(key=key, bpm=bpm)
+    return SongAnalysis(key=key, bpm=bpm, first_beat=first_beat)
 
 
 def save_analysis(path: Path, output_path: Path) -> SongAnalysis:

@@ -253,6 +253,8 @@ export interface components {
             key: string;
             /** Bpm */
             bpm: number;
+            /** First Beat */
+            first_beat: number;
         };
         /** SongSummary */
         SongSummary: {

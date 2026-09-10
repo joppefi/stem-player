@@ -14,6 +14,12 @@ function SongDetails({ songId }: SongDetailsProps) {
     <div className="flex flex-row gap-6">
       <Field label="Key" value={loading ? undefined : data?.key} />
       <Field label="BPM" value={loading ? undefined : data?.bpm} />
+      <Field
+        label="First beat"
+        value={
+          loading || !data ? undefined : `${data.first_beat}s`
+        }
+      />
     </div>
   );
 }
