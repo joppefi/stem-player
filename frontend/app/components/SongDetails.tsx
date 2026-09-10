@@ -15,6 +15,10 @@ function SongDetails({ analysis, loading }: SongDetailsProps) {
         label="First beat"
         value={loading || !analysis ? undefined : `${analysis.first_beat}`}
       />
+      <Field
+        label="Duration"
+        value={loading || !analysis ? undefined : `${analysis.duration}`}
+      />
     </div>
   );
 }

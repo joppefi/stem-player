@@ -255,6 +255,8 @@ export interface components {
             bpm: number;
             /** First Beat */
             first_beat: number;
+            /** Duration */
+            duration: number;
         };
         /** SongSummary */
         SongSummary: {
