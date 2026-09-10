@@ -7,7 +7,7 @@ import PlaybackSpeedSelect from "./PlaybackSpeedSelect";
 import SeekBar from "./SeekBar";
 import StemRow from "./StemRow";
 import TimeLabel from "./TimeLabel";
-import type { BeatMarker } from "./Waveform";
+import type { BeatMarker, LoopRegion } from "./Waveform";
 import type { components } from "~/api/types";
 
 interface StemPlayerProps {
@@ -46,6 +46,17 @@ export default function StemPlayer({
   const [muted, setMuted] = useState<Record<string, boolean>>({});
   const [cursor, setCursor] = useState<number | null>(null);
   const [speed, setSpeed] = useState(1);
+
+  const [loopStart, setLoopStart] = useState<number | null>(null);
+  const [loopEnd, setLoopEnd] = useState<number | null>(null);
+
+  // Mirrors state that changes every animation frame during playback (position)
+  // so callbacks/effects that don't need to re-run on every tick can still read
+  // the latest values without needing them in a dependency array.
+  const latestRef = useRef({ cursor, position, duration, loopStart, loopEnd });
+  useEffect(() => {
+    latestRef.current = { cursor, position, duration, loopStart, loopEnd };
+  });
 
   // Create/load one Tone.Player per stem, synced to the shared Transport.
   // Each player routes through its own PitchShift node so playback speed can
@@ -145,15 +156,24 @@ export default function StemPlayer({
       if (!seekingRef.current) {
         const anchor = anchorRef.current;
         const songPosition = anchor + speed * (transport.seconds - anchor);
-        if (duration > 0 && songPosition >= duration) {
+        const { loopStart, loopEnd } = latestRef.current;
+        if (
+          loopStart !== null &&
+          loopEnd !== null &&
+          loopEnd > loopStart &&
+          songPosition >= loopEnd
+        ) {
+          resyncTransport(loopStart);
+        } else if (duration > 0 && songPosition >= duration) {
           transport.pause();
           anchorRef.current = 0;
           transport.seconds = 0;
           setPosition(0);
           setIsPlaying(false);
           return;
+        } else {
+          setPosition(songPosition);
         }
-        setPosition(songPosition);
       }
       rafRef.current = requestAnimationFrame(tick);
     }
@@ -213,15 +233,6 @@ export default function StemPlayer({
     player.mute = next;
     setMuted((prev) => ({ ...prev, [name]: next }));
   }
-
-  // Mirrors state that changes every animation frame during playback (position)
-  // so the W/S/D handlers below can read the latest values without needing to
-  // be recreated on every tick -- keeps them (and keyboardControls' identity)
-  // stable, same reasoning as the comment above it.
-  const latestRef = useRef({ cursor, position, duration });
-  useEffect(() => {
-    latestRef.current = { cursor, position, duration };
-  });
 
   const moveCursorLeft = useCallback(() => {
     const { cursor, position, duration } = latestRef.current;
@@ -315,6 +326,33 @@ export default function StemPlayer({
     resyncTransport(Math.max(0, Math.min(target, duration)));
   }, [analysis?.bpm, analysis?.first_beat]);
 
+  // Sets the loop region to the 4-beat measure the current position is
+  // inside of (same "which measure" logic as jumpToCurrentMeasure). Looping
+  // itself is handled by the position-tick effect above, which resyncs back
+  // to loopStart once playback reaches loopEnd.
+  const setLoopToCurrentMeasure = useCallback(() => {
+    const bpm = analysis?.bpm;
+    const firstBeat = analysis?.first_beat;
+    if (!bpm || firstBeat === undefined) return;
+    const { position, duration } = latestRef.current;
+    if (duration <= 0) return;
+
+    const measureInterval = (60 / bpm) * 4;
+    const start =
+      position < firstBeat
+        ? 0
+        : firstBeat +
+          Math.floor((position - firstBeat) / measureInterval) *
+            measureInterval;
+    setLoopStart(start);
+    setLoopEnd(Math.min(start + measureInterval, duration));
+  }, [analysis?.bpm, analysis?.first_beat]);
+
+  const removeLoop = useCallback(() => {
+    setLoopStart(null);
+    setLoopEnd(null);
+  }, []);
+
   // Stable reference so KeyboardController's window listener isn't torn down
   // and re-attached on every render (position updates ~60x/sec while playing).
   const keyboardControls = useMemo(
@@ -364,6 +402,16 @@ export default function StemPlayer({
         description: "Jump to start of previous measure",
         handler: jumpToPreviousMeasure,
       },
+      {
+        key: "l",
+        description: "Set loop to current measure",
+        handler: setLoopToCurrentMeasure,
+      },
+      {
+        key: "k",
+        description: "Remove loop",
+        handler: removeLoop,
+      },
     ],
     [
       handlePlayFromCursor,
@@ -374,6 +422,8 @@ export default function StemPlayer({
       jumpToNextMeasure,
       jumpToCurrentMeasure,
       jumpToPreviousMeasure,
+      setLoopToCurrentMeasure,
+      removeLoop,
     ],
   );
 
@@ -392,6 +442,11 @@ export default function StemPlayer({
     }
     return markers;
   }, [analysis?.bpm, analysis?.first_beat, duration]);
+
+  const loopRegion = useMemo<LoopRegion | null>(() => {
+    if (loopStart === null || loopEnd === null || duration <= 0) return null;
+    return { start: loopStart / duration, end: loopEnd / duration };
+  }, [loopStart, loopEnd, duration]);
 
   if (loadError) {
     return (
@@ -458,6 +513,7 @@ export default function StemPlayer({
             cursor={cursor}
             disabled={!ready}
             beats={beats}
+            loopRegion={loopRegion}
           />
         ))}
       </div>

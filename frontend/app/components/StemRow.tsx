@@ -1,5 +1,5 @@
 import MuteButton from "./MuteButton";
-import Waveform, { type BeatMarker } from "./Waveform";
+import Waveform, { type BeatMarker, type LoopRegion } from "./Waveform";
 
 interface StemRowProps {
   songId: string;
@@ -12,6 +12,7 @@ interface StemRowProps {
   cursor: number | null;
   disabled: boolean;
   beats?: BeatMarker[];
+  loopRegion?: LoopRegion | null;
 }
 
 export default function StemRow({
@@ -25,6 +26,7 @@ export default function StemRow({
   cursor,
   disabled,
   beats,
+  loopRegion,
 }: StemRowProps) {
   return (
     <div className="flex flex-col gap-2">
@@ -43,6 +45,7 @@ export default function StemRow({
           disabled={disabled}
           muted={muted}
           beats={beats}
+          loopRegion={loopRegion}
         />
       </div>
     </div>

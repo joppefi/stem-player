@@ -5,6 +5,11 @@ export interface BeatMarker {
   isMeasure: boolean; // true every 4th beat (start of a measure)
 }
 
+export interface LoopRegion {
+  start: number; // 0..1
+  end: number; // 0..1
+}
+
 interface WaveformProps {
   songId: string;
   stemName: string;
@@ -15,6 +20,7 @@ interface WaveformProps {
   disabled?: boolean;
   muted?: boolean;
   beats?: BeatMarker[];
+  loopRegion?: LoopRegion | null;
 }
 
 const IMAGE_WIDTH = 600;
@@ -30,6 +36,7 @@ export default function Waveform({
   disabled,
   muted,
   beats,
+  loopRegion,
 }: WaveformProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -70,6 +77,16 @@ export default function Waveform({
         if (ratio !== null) onDoubleClick(ratio);
       }}
     >
+      {/* Active loop region */}
+      {loopRegion && (
+        <div
+          className="absolute inset-y-0 bg-green-500/30 pointer-events-none"
+          style={{
+            left: `${loopRegion.start * 100}%`,
+            width: `${(loopRegion.end - loopRegion.start) * 100}%`,
+          }}
+        />
+      )}
       {/* Upcoming portion: dimmed */}
       <img
         src={src}
