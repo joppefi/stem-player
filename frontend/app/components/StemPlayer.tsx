@@ -273,6 +273,11 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
         handler: setCursorToCurrentPosition,
       },
       {
+        key: "q",
+        description: "Remove cursor",
+        handler: () => setCursor(null),
+      },
+      {
         key: "Alt",
         description: "Play/pause at current position",
         handler: togglePlayPauseAtCurrentPosition,
