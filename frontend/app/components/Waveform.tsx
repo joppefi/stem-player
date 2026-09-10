@@ -1,5 +1,10 @@
 import { useRef } from "react";
 
+export interface BeatMarker {
+  ratio: number; // 0..1 position along the waveform
+  isMeasure: boolean; // true every 4th beat (start of a measure)
+}
+
 interface WaveformProps {
   songId: string;
   stemName: string;
@@ -9,6 +14,7 @@ interface WaveformProps {
   cursor?: number | null; // 0..1, marker position independent of playback progress
   disabled?: boolean;
   muted?: boolean;
+  beats?: BeatMarker[];
 }
 
 const IMAGE_WIDTH = 600;
@@ -23,6 +29,7 @@ export default function Waveform({
   cursor,
   disabled,
   muted,
+  beats,
 }: WaveformProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -78,6 +85,16 @@ export default function Waveform({
         className={`absolute inset-0 w-full h-full object-fill pointer-events-none select-none ${muted ? "grayscale" : ""}`}
         style={{ clipPath: `inset(0 ${(1 - clampedProgress) * 100}% 0 0)` }}
       />
+      {/* Beat grid: thin lines per beat, thicker every 4th (measure boundary) */}
+      {beats?.map((beat, i) => (
+        <div
+          key={i}
+          className={`absolute inset-y-0 pointer-events-none ${
+            beat.isMeasure ? "w-px bg-gray-500/70" : "w-px bg-gray-500/10"
+          }`}
+          style={{ left: `${beat.ratio * 100}%` }}
+        />
+      ))}
       {/* Cursor marker: independent of playback progress (e.g. set via double-click) */}
       {cursor !== null && cursor !== undefined && (
         <div

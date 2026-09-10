@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as Tone from "tone";
 import { STEM_NAMES } from "../types";
+import { useGetSongAnalysis } from "~/api/hooks.generated";
 import IconButton from "./IconButton";
 import KeyboardController from "./KeyboardController";
 import PlaybackSpeedSelect from "./PlaybackSpeedSelect";
 import SeekBar from "./SeekBar";
 import StemRow from "./StemRow";
 import TimeLabel from "./TimeLabel";
+import type { BeatMarker } from "./Waveform";
 
 interface StemPlayerProps {
   songId: string;
@@ -16,6 +18,8 @@ interface StemPlayerProps {
 const CURSOR_STEP_SECONDS = 0.1;
 
 export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
+  const { data: analysisData } = useGetSongAnalysis(songId);
+
   const stems = STEM_NAMES.filter((name) => stemPaths[name]);
 
   const playersRef = useRef<Record<string, Tone.Player>>({});
@@ -292,6 +296,22 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
     ],
   );
 
+  // Beat grid: one marker per beat from first_beat to the end of the song,
+  // spaced by 60/bpm seconds, every 4th flagged as a measure boundary.
+  const beats = useMemo<BeatMarker[]>(() => {
+    const bpm = analysisData?.bpm;
+    const firstBeat = analysisData?.first_beat;
+    if (!bpm || firstBeat === undefined || duration <= 0) return [];
+
+    const beatInterval = 60 / bpm;
+    const markers: BeatMarker[] = [];
+    let beatIndex = 0;
+    for (let t = firstBeat; t < duration; t += beatInterval, beatIndex += 1) {
+      markers.push({ ratio: t / duration, isMeasure: beatIndex % 4 === 0 });
+    }
+    return markers;
+  }, [analysisData?.bpm, analysisData?.first_beat, duration]);
+
   if (loadError) {
     return (
       <p className="text-sm text-red-600 dark:text-red-400">
@@ -356,6 +376,7 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
             onDoubleClick={(ratio) => setCursor(ratio)}
             cursor={cursor}
             disabled={!ready}
+            beats={beats}
           />
         ))}
       </div>
