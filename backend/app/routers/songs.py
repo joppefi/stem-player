@@ -110,7 +110,11 @@ def get_song_analysis(song_id: str) -> SongAnalysis:
 
     analysis_path = song_dir / "analysis.json"
     if analysis_path.is_file():
-        return FileResponse(analysis_path, media_type="application/json")
+        return FileResponse(
+            analysis_path,
+            media_type="application/json",
+            headers={"Cache-Control": "no-cache"},
+        )
 
     original = find_original_file(song_dir)
     if original is None:
@@ -123,4 +127,8 @@ def get_song_analysis(song_id: str) -> SongAnalysis:
     if saved_path is None:
         raise HTTPException(status_code=500, detail="Analysis failed")
 
-    return FileResponse(saved_path, media_type="application/json")
+    return FileResponse(
+        saved_path,
+        media_type="application/json",
+        headers={"Cache-Control": "no-cache"},
+    )
