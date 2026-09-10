@@ -36,7 +36,7 @@ export default function SongPage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center gap-8 p-6 pt-16">
+    <main className="min-h-screen flex flex-col items-center gap-8 p-6 pt-18">
       <div className="text-center">
         {song.title && (
           <h1 className="text-2xl font-semibold break-words max-w-xl">
