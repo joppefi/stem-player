@@ -45,13 +45,15 @@ export default function SongPage() {
         )}
       </div>
       <SongDetails analysis={analysisData} loading={analysisLoading} />
-      <div className="w-full max-w-xl">
-        <StemPlayer
-          songId={songId}
-          stemPaths={song.stem_paths}
-          analysis={analysisData}
-        />
-      </div>
+      {song && analysisData && (
+        <div className="w-full max-w-xl">
+          <StemPlayer
+            songId={songId}
+            stemPaths={song.stem_paths}
+            analysis={analysisData}
+          />
+        </div>
+      )}
     </main>
   );
 }

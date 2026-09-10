@@ -13,7 +13,7 @@ import type { components } from "~/api/types";
 interface StemPlayerProps {
   songId: string;
   stemPaths: Record<string, string>;
-  analysis: components["schemas"]["SongAnalysis"] | null;
+  analysis: components["schemas"]["SongAnalysis"];
 }
 
 const CURSOR_STEP_SECONDS = 0.1;
@@ -255,6 +255,66 @@ export default function StemPlayer({
     void handlePlayPauseRef.current();
   }, []);
 
+  // Jumps (without stopping playback) to the start of the next 4-beat measure
+  // after the current position, based on the song's detected first beat/bpm.
+  const jumpToNextMeasure = useCallback(() => {
+    const bpm = analysis?.bpm;
+    const firstBeat = analysis?.first_beat;
+    if (!bpm || firstBeat === undefined) return;
+    const { position, duration } = latestRef.current;
+    if (duration <= 0) return;
+
+    const measureInterval = (60 / bpm) * 4;
+    const target =
+      position < firstBeat
+        ? firstBeat
+        : firstBeat +
+          (Math.floor((position - firstBeat) / measureInterval) + 1) *
+            measureInterval;
+    resyncTransport(Math.min(target, duration));
+  }, [analysis?.bpm, analysis?.first_beat]);
+
+  // Jumps (without stopping playback) to the start of the 4-beat measure the
+  // current position is inside of. Before the first detected beat, there is
+  // no "current" measure yet, so this goes to the very start of the song.
+  const jumpToCurrentMeasure = useCallback(() => {
+    const bpm = analysis?.bpm;
+    const firstBeat = analysis?.first_beat;
+    if (!bpm || firstBeat === undefined) return;
+    const { position, duration } = latestRef.current;
+    if (duration <= 0) return;
+
+    const measureInterval = (60 / bpm) * 4;
+    const target =
+      position < firstBeat
+        ? 0
+        : firstBeat +
+          Math.floor((position - firstBeat) / measureInterval) *
+            measureInterval;
+    resyncTransport(Math.min(target, duration));
+  }, [analysis?.bpm, analysis?.first_beat]);
+
+  // Jumps (without stopping playback) to the start of the 4-beat measure
+  // before the one the current position is inside of. Before the first
+  // detected beat -- or already within the first measure -- this just goes
+  // to the very start of the song.
+  const jumpToPreviousMeasure = useCallback(() => {
+    const bpm = analysis?.bpm;
+    const firstBeat = analysis?.first_beat;
+    if (!bpm || firstBeat === undefined) return;
+    const { position, duration } = latestRef.current;
+    if (duration <= 0) return;
+
+    const measureInterval = (60 / bpm) * 4;
+    const target =
+      position < firstBeat
+        ? 0
+        : firstBeat +
+          (Math.floor((position - firstBeat) / measureInterval) - 1) *
+            measureInterval;
+    resyncTransport(Math.max(0, Math.min(target, duration)));
+  }, [analysis?.bpm, analysis?.first_beat]);
+
   // Stable reference so KeyboardController's window listener isn't torn down
   // and re-attached on every render (position updates ~60x/sec while playing).
   const keyboardControls = useMemo(
@@ -289,6 +349,21 @@ export default function StemPlayer({
         description: "Play/pause at current position",
         handler: togglePlayPauseAtCurrentPosition,
       },
+      {
+        key: "m",
+        description: "Jump to start of next measure",
+        handler: jumpToNextMeasure,
+      },
+      {
+        key: "n",
+        description: "Jump to start of current measure",
+        handler: jumpToCurrentMeasure,
+      },
+      {
+        key: "b",
+        description: "Jump to start of previous measure",
+        handler: jumpToPreviousMeasure,
+      },
     ],
     [
       handlePlayFromCursor,
@@ -296,6 +371,9 @@ export default function StemPlayer({
       moveCursorRight,
       setCursorToCurrentPosition,
       togglePlayPauseAtCurrentPosition,
+      jumpToNextMeasure,
+      jumpToCurrentMeasure,
+      jumpToPreviousMeasure,
     ],
   );
 
