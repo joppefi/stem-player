@@ -45,12 +45,6 @@ export default function SongPage() {
       <div className="w-full max-w-xl">
         <StemPlayer songId={songId} stemPaths={song.stem_paths} />
       </div>
-      <Link
-        to="/"
-        className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-      >
-        Back home
-      </Link>
     </main>
   );
 }
