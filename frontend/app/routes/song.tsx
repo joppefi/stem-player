@@ -2,7 +2,7 @@ import { Link, useParams } from "react-router";
 import type { Route } from "./+types/song";
 import SongDetails from "../components/SongDetails";
 import StemPlayer from "../components/StemPlayer";
-import { useGetSong } from "~/api/hooks.generated";
+import { useGetSong, useGetSongAnalysis } from "~/api/hooks.generated";
 
 export function meta({}: Route.MetaArgs) {
   return [{ title: "Stem Player" }];
@@ -11,6 +11,9 @@ export function meta({}: Route.MetaArgs) {
 export default function SongPage() {
   const { songId } = useParams();
   const { data: song, loading, error } = useGetSong(songId ?? null);
+  const { data: analysisData, loading: analysisLoading } = useGetSongAnalysis(
+    songId ?? null,
+  );
 
   if (!songId) {
     return <ErrorScreen message="No song id given." />;
@@ -41,9 +44,13 @@ export default function SongPage() {
           </h1>
         )}
       </div>
-      <SongDetails songId={songId} />
+      <SongDetails analysis={analysisData} loading={analysisLoading} />
       <div className="w-full max-w-xl">
-        <StemPlayer songId={songId} stemPaths={song.stem_paths} />
+        <StemPlayer
+          songId={songId}
+          stemPaths={song.stem_paths}
+          analysis={analysisData}
+        />
       </div>
     </main>
   );

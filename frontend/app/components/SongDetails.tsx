@@ -1,24 +1,19 @@
+import type { components } from "~/api/types";
 import Field from "./Field";
-import { useGetSongAnalysis } from "~/api/hooks.generated";
 
 type SongDetailsProps = {
-  songId: string;
+  analysis: components["schemas"]["SongAnalysis"] | null;
+  loading?: boolean;
 };
 
-function SongDetails({ songId }: SongDetailsProps) {
-  const { data, loading, error } = useGetSongAnalysis(songId);
-
-  if (error) return null;
-
+function SongDetails({ analysis, loading }: SongDetailsProps) {
   return (
     <div className="flex flex-row gap-6">
-      <Field label="Key" value={loading ? undefined : data?.key} />
-      <Field label="BPM" value={loading ? undefined : data?.bpm} />
+      <Field label="Key" value={loading ? undefined : analysis?.key} />
+      <Field label="BPM" value={loading ? undefined : analysis?.bpm} />
       <Field
         label="First beat"
-        value={
-          loading || !data ? undefined : `${data.first_beat}s`
-        }
+        value={loading || !analysis ? undefined : `${analysis.first_beat}`}
       />
     </div>
   );

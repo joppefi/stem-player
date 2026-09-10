@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as Tone from "tone";
 import { STEM_NAMES } from "../types";
-import { useGetSongAnalysis } from "~/api/hooks.generated";
 import IconButton from "./IconButton";
 import KeyboardController from "./KeyboardController";
 import PlaybackSpeedSelect from "./PlaybackSpeedSelect";
@@ -9,17 +8,21 @@ import SeekBar from "./SeekBar";
 import StemRow from "./StemRow";
 import TimeLabel from "./TimeLabel";
 import type { BeatMarker } from "./Waveform";
+import type { components } from "~/api/types";
 
 interface StemPlayerProps {
   songId: string;
   stemPaths: Record<string, string>;
+  analysis: components["schemas"]["SongAnalysis"] | null;
 }
 
 const CURSOR_STEP_SECONDS = 0.1;
 
-export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
-  const { data: analysisData } = useGetSongAnalysis(songId);
-
+export default function StemPlayer({
+  songId,
+  stemPaths,
+  analysis,
+}: StemPlayerProps) {
   const stems = STEM_NAMES.filter((name) => stemPaths[name]);
 
   const playersRef = useRef<Record<string, Tone.Player>>({});
@@ -299,8 +302,8 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
   // Beat grid: one marker per beat from first_beat to the end of the song,
   // spaced by 60/bpm seconds, every 4th flagged as a measure boundary.
   const beats = useMemo<BeatMarker[]>(() => {
-    const bpm = analysisData?.bpm;
-    const firstBeat = analysisData?.first_beat;
+    const bpm = analysis?.bpm;
+    const firstBeat = analysis?.first_beat;
     if (!bpm || firstBeat === undefined || duration <= 0) return [];
 
     const beatInterval = 60 / bpm;
@@ -310,7 +313,7 @@ export default function StemPlayer({ songId, stemPaths }: StemPlayerProps) {
       markers.push({ ratio: t / duration, isMeasure: beatIndex % 4 === 0 });
     }
     return markers;
-  }, [analysisData?.bpm, analysisData?.first_beat, duration]);
+  }, [analysis?.bpm, analysis?.first_beat, duration]);
 
   if (loadError) {
     return (
