@@ -32,3 +32,7 @@ class SongSummary(BaseModel):
 class SongAnalysis(BaseModel):
     key: str
     bpm: float
+
+
+class ConfigResponse(BaseModel):
+    data_dir: str

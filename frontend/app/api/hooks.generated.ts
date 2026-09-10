@@ -33,3 +33,7 @@ export function useGetSongAnalysis(songId: string | null) {
 export function useHealth() {
   return useApi<operations["health_api_health_get"]["responses"]["200"]["content"]["application/json"]>("/api/health");
 }
+
+export function useConfig() {
+  return useApi<operations["config_api_config_get"]["responses"]["200"]["content"]["application/json"]>("/api/config");
+}

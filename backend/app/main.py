@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.models import ConfigResponse
 from app.paths import DATA_DIR
 from app.routers import separate, songs, ws
 from app.routers.separate import shutdown_executor
@@ -34,6 +35,11 @@ app.include_router(ws.router)
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/api/config")
+def config() -> ConfigResponse:
+    return ConfigResponse(data_dir=str(DATA_DIR))
 
 
 FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "build" / "client"
