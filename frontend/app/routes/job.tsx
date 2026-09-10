@@ -136,7 +136,7 @@ export default function JobPage() {
 
   const percent = Math.round((job.progress ?? 0) * 100);
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center gap-6 p-6">
+    <main className="min-h-screen flex flex-col items-center justify-center gap-6 p-6 pt-16">
       <div className="text-center">
         {job.title && (
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-1 break-words max-w-md">
@@ -192,7 +192,7 @@ function ErrorScreen({ message }: { message: string }) {
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-screen flex items-center justify-center p-6">
+    <main className="min-h-screen flex items-center justify-center p-6 pt-16">
       {children}
     </main>
   );

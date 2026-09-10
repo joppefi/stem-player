@@ -33,7 +33,7 @@ export default function SongPage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center gap-8 p-6">
+    <main className="min-h-screen flex flex-col items-center justify-center gap-8 p-6 pt-16">
       <div className="text-center">
         {song.title && (
           <h1 className="text-2xl font-semibold break-words max-w-xl">
@@ -76,7 +76,7 @@ function ErrorScreen({ message }: { message: string }) {
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-screen flex items-center justify-center p-6">
+    <main className="min-h-screen flex items-center justify-center p-6 pt-16">
       {children}
     </main>
   );
