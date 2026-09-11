@@ -201,6 +201,13 @@ export default function StemPlayer({
     resyncTransport(value);
   }
 
+  // Clicking/dragging the waveform to seek is treated as leaving the loop
+  // region, unlike programmatic jumps (measure keys) or the top seek bar.
+  function handleWaveformSeek(ratio: number) {
+    handleSeek(ratio * duration);
+    removeLoop();
+  }
+
   const handlePlayFromCursor = useCallback(async () => {
     await Tone.start();
     const target =
@@ -353,6 +360,32 @@ export default function StemPlayer({
     setLoopEnd(null);
   }, []);
 
+  // Grows the loop by one measure, extending loopEnd forward (clamped to the
+  // end of the song). No-op if there's no active loop.
+  const growLoopByMeasure = useCallback(() => {
+    const bpm = analysis?.bpm;
+    if (!bpm) return;
+    const { loopStart, loopEnd, duration } = latestRef.current;
+    if (loopStart === null || loopEnd === null || duration <= 0) return;
+
+    const measureInterval = (60 / bpm) * 4;
+    setLoopEnd(Math.min(loopEnd + measureInterval, duration));
+  }, [analysis?.bpm]);
+
+  // Shrinks the loop by one measure, pulling loopEnd back -- but never below
+  // a single measure's length, so a one-measure loop can't be subtracted
+  // further.
+  const shrinkLoopByMeasure = useCallback(() => {
+    const bpm = analysis?.bpm;
+    if (!bpm) return;
+    const { loopStart, loopEnd } = latestRef.current;
+    if (loopStart === null || loopEnd === null) return;
+
+    const measureInterval = (60 / bpm) * 4;
+    if (loopEnd - loopStart - measureInterval < measureInterval - 1e-6) return;
+    setLoopEnd(loopEnd - measureInterval);
+  }, [analysis?.bpm]);
+
   // Stable reference so KeyboardController's window listener isn't torn down
   // and re-attached on every render (position updates ~60x/sec while playing).
   const keyboardControls = useMemo(
@@ -403,14 +436,24 @@ export default function StemPlayer({
         handler: jumpToPreviousMeasure,
       },
       {
-        key: "l",
+        key: "h",
         description: "Set loop to current measure",
         handler: setLoopToCurrentMeasure,
       },
       {
-        key: "k",
+        key: "j",
         description: "Remove loop",
         handler: removeLoop,
+      },
+      {
+        key: "k",
+        description: "Loop -1 measure",
+        handler: shrinkLoopByMeasure,
+      },
+      {
+        key: "l",
+        description: "Loop +1 measure",
+        handler: growLoopByMeasure,
       },
     ],
     [
@@ -424,6 +467,8 @@ export default function StemPlayer({
       jumpToPreviousMeasure,
       setLoopToCurrentMeasure,
       removeLoop,
+      growLoopByMeasure,
+      shrinkLoopByMeasure,
     ],
   );
 
@@ -508,7 +553,7 @@ export default function StemPlayer({
             muted={muted[name]}
             onToggleMute={() => toggleMute(name)}
             progress={duration > 0 ? position / duration : 0}
-            onSeek={(ratio) => handleSeek(ratio * duration)}
+            onSeek={handleWaveformSeek}
             onDoubleClick={(ratio) => setCursor(ratio)}
             cursor={cursor}
             disabled={!ready}
