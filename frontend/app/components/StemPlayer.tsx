@@ -386,11 +386,42 @@ export default function StemPlayer({
     setLoopEnd(loopEnd - measureInterval);
   }, [analysis?.bpm]);
 
+  // Slides the whole loop (keeping its length) back by one measure, clamped
+  // so it can't move before the start of the song.
+  const moveLoopBackward = useCallback(() => {
+    const bpm = analysis?.bpm;
+    if (!bpm) return;
+    const { loopStart, loopEnd } = latestRef.current;
+    if (loopStart === null || loopEnd === null) return;
+
+    const measureInterval = (60 / bpm) * 4;
+    const length = loopEnd - loopStart;
+    const newStart = Math.max(0, loopStart - measureInterval);
+    setLoopStart(newStart);
+    setLoopEnd(newStart + length);
+  }, [analysis?.bpm]);
+
+  // Slides the whole loop (keeping its length) forward by one measure,
+  // clamped so it can't move past the end of the song.
+  const moveLoopForward = useCallback(() => {
+    const bpm = analysis?.bpm;
+    if (!bpm) return;
+    const { loopStart, loopEnd, duration } = latestRef.current;
+    if (loopStart === null || loopEnd === null || duration <= 0) return;
+
+    const measureInterval = (60 / bpm) * 4;
+    const length = loopEnd - loopStart;
+    const newStart = Math.min(loopStart + measureInterval, duration - length);
+    setLoopStart(newStart);
+    setLoopEnd(newStart + length);
+  }, [analysis?.bpm]);
+
   // Stable reference so KeyboardController's window listener isn't torn down
   // and re-attached on every render (position updates ~60x/sec while playing).
   const keyboardControls = useMemo(
     () => [
       {
+        title: "Playback controls",
         key: " ",
         description: "Play/pause at current position",
         handler: togglePlayPauseAtCurrentPosition,
@@ -401,6 +432,22 @@ export default function StemPlayer({
         handler: () => void handlePlayFromCursor(),
       },
       {
+        key: "m",
+        description: "Jump to start of next measure",
+        handler: jumpToNextMeasure,
+      },
+      {
+        key: "n",
+        description: "Jump to start of current measure",
+        handler: jumpToCurrentMeasure,
+      },
+      {
+        key: "b",
+        description: "Jump to start of previous measure",
+        handler: jumpToPreviousMeasure,
+      },
+      {
+        title: "Cursor controls",
         key: "a",
         description: "Move cursor left",
         handler: moveCursorLeft,
@@ -421,21 +468,7 @@ export default function StemPlayer({
         handler: () => setCursor(null),
       },
       {
-        key: "m",
-        description: "Jump to start of next measure",
-        handler: jumpToNextMeasure,
-      },
-      {
-        key: "n",
-        description: "Jump to start of current measure",
-        handler: jumpToCurrentMeasure,
-      },
-      {
-        key: "b",
-        description: "Jump to start of previous measure",
-        handler: jumpToPreviousMeasure,
-      },
-      {
+        title: "Loop controls",
         key: "h",
         description: "Set loop to current measure",
         handler: setLoopToCurrentMeasure,
@@ -455,6 +488,16 @@ export default function StemPlayer({
         description: "Loop +1 measure",
         handler: growLoopByMeasure,
       },
+      {
+        key: "u",
+        description: "Move loop back 1 measure",
+        handler: moveLoopBackward,
+      },
+      {
+        key: "i",
+        description: "Move loop forward 1 measure",
+        handler: moveLoopForward,
+      },
     ],
     [
       handlePlayFromCursor,
@@ -469,6 +512,8 @@ export default function StemPlayer({
       removeLoop,
       growLoopByMeasure,
       shrinkLoopByMeasure,
+      moveLoopBackward,
+      moveLoopForward,
     ],
   );
 
