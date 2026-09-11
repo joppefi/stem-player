@@ -1,4 +1,5 @@
 import logging
+import sys
 from pathlib import Path
 from typing import Callable
 
@@ -11,6 +12,25 @@ MAX_DURATION_SECONDS = 15 * 60
 
 class DownloadError(Exception):
     pass
+
+
+def _bundled_ffmpeg_location() -> str | None:
+    """Path to a bundled ffmpeg, if one was shipped alongside a frozen build
+    (see stem-player.spec / build_binary_osx.sh / build_binary_windows.ps1).
+    Outside a frozen build -- or if no binary was placed in
+    backend/resources/ffmpeg before building -- this returns None and
+    yt-dlp falls back to whatever's on PATH, same as today.
+
+    This points at the containing directory rather than the binary itself:
+    yt-dlp resolves "<dir>/ffmpeg" per-platform from there, and on Windows
+    the OS process launcher appends ".exe" automatically when a bare name
+    is given -- so the same resources/ffmpeg/ffmpeg(.exe) layout works on
+    both platforms without an OS check here.
+    """
+    if not getattr(sys, "frozen", False):
+        return None
+    candidate = Path(sys.executable).resolve().parent / "resources" / "ffmpeg"
+    return str(candidate) if candidate.exists() else None
 
 
 def probe(url: str) -> dict:
@@ -60,6 +80,9 @@ def download_audio(
         "quiet": True,
         "no_warnings": True,
     }
+    ffmpeg_location = _bundled_ffmpeg_location()
+    if ffmpeg_location:
+        ydl_opts["ffmpeg_location"] = ffmpeg_location
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
