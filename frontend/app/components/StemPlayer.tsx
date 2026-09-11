@@ -359,6 +359,11 @@ export default function StemPlayer({
     () => [
       {
         key: " ",
+        description: "Play/pause at current position",
+        handler: togglePlayPauseAtCurrentPosition,
+      },
+      {
+        key: "Alt",
         description: "Play from cursor",
         handler: () => void handlePlayFromCursor(),
       },
@@ -381,11 +386,6 @@ export default function StemPlayer({
         key: "q",
         description: "Remove cursor",
         handler: () => setCursor(null),
-      },
-      {
-        key: "Alt",
-        description: "Play/pause at current position",
-        handler: togglePlayPauseAtCurrentPosition,
       },
       {
         key: "m",
