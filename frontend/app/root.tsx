@@ -12,7 +12,7 @@ import TopBar from "./components/TopBar";
 import "./app.css";
 
 export const links: Route.LinksFunction = () => [
-  { rel: "icon", href: "/chatgpt-logo.png", type: "image/png" },
+  { rel: "icon", href: "/logo.png", type: "image/png" },
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
     rel: "preconnect",
