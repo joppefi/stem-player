@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { useConfig } from "~/api/hooks.generated";
-import Field from "./Field";
+import Field, { Label } from "./Field";
+import VolumeControl from "./VolumeControl";
 
 export default function TopBar() {
   const { data } = useConfig();
@@ -10,7 +11,10 @@ export default function TopBar() {
       <Link to="/" className="text-sm font-semibold">
         Stem Player
       </Link>
-      <Field label="Data path" value={data?.data_dir} />
+      <div className="flex gap-4">
+        <VolumeControl />
+        <Field label="Data path" value={data?.data_dir} />
+      </div>
     </header>
   );
 }
