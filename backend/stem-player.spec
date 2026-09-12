@@ -14,13 +14,21 @@
 # collect_all(...) for the ML/audio packages below: PyInstaller's static
 # import scanner is known to miss their dynamic imports and C extensions.
 
+import sys
+
 from PyInstaller.utils.hooks import collect_all
 
 datas = [("../frontend/build/client", "frontend_dist")]
 binaries = []
 hiddenimports = []
 
-for pkg in ("torch", "torchaudio", "demucs", "librosa", "matplotlib"):
+collect_pkgs = ["torch", "torchaudio", "demucs", "librosa", "matplotlib", "webview"]
+if sys.platform == "win32":
+    # pywebview's default Windows backend (WebView2/WinForms) goes through
+    # pythonnet's .NET interop, which PyInstaller's scanner can't follow.
+    collect_pkgs.append("pythonnet")
+
+for pkg in collect_pkgs:
     pkg_datas, pkg_binaries, pkg_hiddenimports = collect_all(pkg)
     datas += pkg_datas
     binaries += pkg_binaries

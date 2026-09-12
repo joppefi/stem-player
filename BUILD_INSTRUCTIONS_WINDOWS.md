@@ -60,7 +60,26 @@ This runs `npm run build` in `frontend/` first, then
 This is a heavy build (torch, torchaudio, demucs, librosa, matplotlib all
 have to be collected) and can take a couple of minutes.
 
-## 3. ffmpeg
+## 3. Native window (pywebview)
+
+The built binary opens in its own window via `pywebview`
+(`backend/run.py`) rather than requiring you to open a browser tab. On
+Windows, pywebview's default backend renders through **Microsoft Edge
+WebView2**, which needs its runtime present:
+
+- Windows 11 and current Windows 10 installs have it preinstalled.
+- If it's missing, pywebview falls back to the legacy MSHTML/IE engine,
+  which will render this app's UI poorly (it's a modern SPA). If the
+  window looks broken, install the
+  [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)
+  first.
+
+The Windows backend also depends on `pythonnet` for the .NET interop
+WebView2 needs — already added to `pyproject.toml`'s dependencies
+(conditional on `sys_platform == "win32"`), so `pip install -e ".[dev]"`
+picks it up automatically; no extra step needed.
+
+## 4. ffmpeg
 
 The app needs `ffmpeg` (and `ffprobe`) for two separate things, and only
 one of them is currently wired to look anywhere other than the system
@@ -88,13 +107,14 @@ swap the binaries later.
 separation will fail — song upload, playback, and everything else works
 regardless, since they don't touch ffmpeg.)
 
-## 4. Run it
+## 5. Run it
 
 ```powershell
 dist\stem-player\stem-player.exe
 ```
 
-Then open `http://127.0.0.1:8000`. A `data\` folder is created next to the
+It opens directly in its own window (see the pywebview section above) --
+no need to open a browser. A `data\` folder is created next to the
 executable for downloaded songs and separated stems (override with the
 `STEM_PLAYER_DATA_DIR` env var, same as running from source).
 
