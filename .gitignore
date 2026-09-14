@@ -4,5 +4,7 @@ __pycache__/
 *.pyc
 frontend/build/
 backend/data/
+backend/build/
+backend/dist/
 .DS_Store
 *.log

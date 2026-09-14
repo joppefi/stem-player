@@ -1,4 +1,5 @@
 import logging
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -42,7 +43,12 @@ def config() -> ConfigResponse:
     return ConfigResponse(data_dir=str(DATA_DIR))
 
 
-FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "build" / "client"
+if getattr(sys, "frozen", False):
+    # PyInstaller extracts bundled data (see stem-player.spec's `datas`) under
+    # sys._MEIPASS rather than next to this source file.
+    FRONTEND_DIST = Path(sys._MEIPASS) / "frontend_dist"  # type: ignore[attr-defined]
+else:
+    FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "build" / "client"
 
 if FRONTEND_DIST.exists():
     app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
