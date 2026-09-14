@@ -10,6 +10,13 @@ export interface LoopRegion {
   end: number; // 0..1
 }
 
+export interface LabelMarker {
+  id: string;
+  name: string;
+  startRatio: number; // 0..1
+  endRatio: number; // 0..1
+}
+
 interface WaveformProps {
   songId: string;
   stemName: string;
@@ -21,6 +28,7 @@ interface WaveformProps {
   muted?: boolean;
   beats?: BeatMarker[];
   loopRegion?: LoopRegion | null;
+  labels?: LabelMarker[];
 }
 
 const IMAGE_WIDTH = 600;
@@ -37,6 +45,7 @@ export default function Waveform({
   muted,
   beats,
   loopRegion,
+  labels,
 }: WaveformProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -87,6 +96,18 @@ export default function Waveform({
           }}
         />
       )}
+      {/* Named labeled sections */}
+      {labels?.map((label) => (
+        <div
+          key={label.id}
+          title={label.name}
+          className="absolute inset-y-0 bg-violet-500/30 pointer-events-none"
+          style={{
+            left: `${label.startRatio * 100}%`,
+            width: `${(label.endRatio - label.startRatio) * 100}%`,
+          }}
+        />
+      ))}
       {/* Upcoming portion: dimmed */}
       <img
         src={src}
