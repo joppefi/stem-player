@@ -38,3 +38,16 @@ class SongAnalysis(BaseModel):
 
 class ConfigResponse(BaseModel):
     data_dir: str
+
+
+class Label(BaseModel):
+    id: str
+    name: str
+    start: float
+    end: float
+
+
+class LabelCreate(BaseModel):
+    name: str
+    start: float
+    end: float

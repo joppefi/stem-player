@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as Tone from "tone";
 import { STEM_NAMES } from "../types";
+import { useListSongLabels } from "~/api/hooks.generated";
+import type { Label } from "~/api/labels";
 import IconButton from "./IconButton";
 import KeyboardController from "./KeyboardController";
+import LabelsPanel from "./LabelsPanel";
 import PlaybackSpeedSelect from "./PlaybackSpeedSelect";
 import SeekBar from "./SeekBar";
 import StemRow from "./StemRow";
 import TimeLabel from "./TimeLabel";
-import type { BeatMarker, LoopRegion } from "./Waveform";
+import type { BeatMarker, LabelMarker, LoopRegion } from "./Waveform";
 import type { components } from "~/api/types";
 
 interface StemPlayerProps {
@@ -24,6 +27,10 @@ export default function StemPlayer({
   analysis,
 }: StemPlayerProps) {
   const stems = STEM_NAMES.filter((name) => stemPaths[name]);
+
+  const { data: labelsData, refetch: refetchLabels } =
+    useListSongLabels(songId);
+  const rawLabels = labelsData ?? [];
 
   const playersRef = useRef<Record<string, Tone.Player>>({});
   const pitchShiftsRef = useRef<Record<string, Tone.PitchShift>>({});
@@ -360,6 +367,19 @@ export default function StemPlayer({
     setLoopEnd(null);
   }, []);
 
+  // Sets loopStart/loopEnd freely to the current position -- unlike
+  // setLoopToCurrentMeasure, not snapped to a measure boundary. An
+  // inverted result (start >= end) is left as-is; the position-tick
+  // effect only loops while loopEnd > loopStart, so it's simply inert
+  // until corrected rather than validated here.
+  const setLoopStartAtCurrentPosition = useCallback(() => {
+    setLoopStart(latestRef.current.position);
+  }, []);
+
+  const setLoopEndAtCurrentPosition = useCallback(() => {
+    setLoopEnd(latestRef.current.position);
+  }, []);
+
   // Grows the loop by one measure, extending loopEnd forward (clamped to the
   // end of the song). No-op if there's no active loop.
   const growLoopByMeasure = useCallback(() => {
@@ -498,6 +518,16 @@ export default function StemPlayer({
         description: "Move loop forward 1 measure",
         handler: moveLoopForward,
       },
+      {
+        key: "o",
+        description: "Set loop start to current position",
+        handler: setLoopStartAtCurrentPosition,
+      },
+      {
+        key: "p",
+        description: "Set loop end to current position",
+        handler: setLoopEndAtCurrentPosition,
+      },
     ],
     [
       handlePlayFromCursor,
@@ -514,6 +544,8 @@ export default function StemPlayer({
       shrinkLoopByMeasure,
       moveLoopBackward,
       moveLoopForward,
+      setLoopStartAtCurrentPosition,
+      setLoopEndAtCurrentPosition,
     ],
   );
 
@@ -537,6 +569,24 @@ export default function StemPlayer({
     if (loopStart === null || loopEnd === null || duration <= 0) return null;
     return { start: loopStart / duration, end: loopEnd / duration };
   }, [loopStart, loopEnd, duration]);
+
+  const labelMarkers = useMemo<LabelMarker[]>(() => {
+    if (duration <= 0) return [];
+    return rawLabels.map((label) => ({
+      id: label.id,
+      name: label.name,
+      startRatio: label.start / duration,
+      endRatio: label.end / duration,
+    }));
+  }, [rawLabels, duration]);
+
+  // Selecting a label sets the loop to its bounds (so the section can be
+  // reviewed on repeat) and seeks playback there.
+  function handleSelectLabel(label: Label) {
+    setLoopStart(label.start);
+    setLoopEnd(label.end);
+    resyncTransport(label.start);
+  }
 
   if (loadError) {
     return (
@@ -604,9 +654,19 @@ export default function StemPlayer({
             disabled={!ready}
             beats={beats}
             loopRegion={loopRegion}
+            labels={labelMarkers}
           />
         ))}
       </div>
+
+      <LabelsPanel
+        songId={songId}
+        labels={rawLabels}
+        loopStart={loopStart}
+        loopEnd={loopEnd}
+        onSelectLabel={handleSelectLabel}
+        onLabelsChanged={refetchLabels}
+      />
 
       {ready && <KeyboardController controls={keyboardControls} />}
     </div>

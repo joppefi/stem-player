@@ -30,6 +30,11 @@ export function useGetSongAnalysis(songId: string | null) {
   return useApi<operations["get_song_analysis_api_songs__song_id__analysis_get"]["responses"]["200"]["content"]["application/json"]>(url);
 }
 
+export function useListSongLabels(songId: string | null) {
+  const url = songId !== null ? `/api/songs/${songId}/labels` : null;
+  return useApi<operations["list_song_labels_api_songs__song_id__labels_get"]["responses"]["200"]["content"]["application/json"]>(url);
+}
+
 export function useHealth() {
   return useApi<operations["health_api_health_get"]["responses"]["200"]["content"]["application/json"]>("/api/health");
 }

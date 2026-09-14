@@ -1,10 +1,12 @@
+import json
 import logging
+import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, Response
 
-from app.models import Job, JobStatus, SongAnalysis, SongSummary
+from app.models import Job, JobStatus, Label, LabelCreate, SongAnalysis, SongSummary
 from app.paths import DATA_DIR, STEM_NAMES
 from app.services.analysis import find_original_file, run_analysis_for_folder
 from app.services.waveform import generate_waveform_png
@@ -132,3 +134,75 @@ def get_song_analysis(song_id: str) -> SongAnalysis:
         media_type="application/json",
         headers={"Cache-Control": "no-cache"},
     )
+
+
+def _labels_path(song_dir: Path) -> Path:
+    return song_dir / "labels.json"
+
+
+def _read_labels(song_dir: Path) -> list[Label]:
+    path = _labels_path(song_dir)
+    if not path.is_file():
+        return []
+    return [Label(**entry) for entry in json.loads(path.read_text())]
+
+
+def _write_labels(song_dir: Path, labels: list[Label]) -> None:
+    path = _labels_path(song_dir)
+    path.write_text(json.dumps([label.model_dump() for label in labels]))
+
+
+@router.get("/api/songs/{song_id}/labels", response_model=list[Label])
+def list_song_labels(song_id: str) -> list[Label]:
+    song_dir = _find_song_dir(song_id)
+    if song_dir is None:
+        raise HTTPException(status_code=404, detail="Song not found")
+    return _read_labels(song_dir)
+
+
+@router.post("/api/songs/{song_id}/labels", response_model=Label)
+def create_song_label(song_id: str, body: LabelCreate) -> Label:
+    song_dir = _find_song_dir(song_id)
+    if song_dir is None:
+        raise HTTPException(status_code=404, detail="Song not found")
+    if body.start >= body.end:
+        raise HTTPException(status_code=400, detail="start must be before end")
+
+    labels = _read_labels(song_dir)
+    label = Label(id=str(uuid.uuid4()), name=body.name, start=body.start, end=body.end)
+    labels.append(label)
+    _write_labels(song_dir, labels)
+    return label
+
+
+@router.put("/api/songs/{song_id}/labels/{label_id}", response_model=Label)
+def update_song_label(song_id: str, label_id: str, body: LabelCreate) -> Label:
+    song_dir = _find_song_dir(song_id)
+    if song_dir is None:
+        raise HTTPException(status_code=404, detail="Song not found")
+    if body.start >= body.end:
+        raise HTTPException(status_code=400, detail="start must be before end")
+
+    labels = _read_labels(song_dir)
+    for i, existing in enumerate(labels):
+        if existing.id == label_id:
+            updated = Label(id=label_id, name=body.name, start=body.start, end=body.end)
+            labels[i] = updated
+            _write_labels(song_dir, labels)
+            return updated
+    raise HTTPException(status_code=404, detail="Label not found")
+
+
+@router.delete("/api/songs/{song_id}/labels/{label_id}", status_code=204)
+def delete_song_label(song_id: str, label_id: str) -> Response:
+    song_dir = _find_song_dir(song_id)
+    if song_dir is None:
+        raise HTTPException(status_code=404, detail="Song not found")
+
+    labels = _read_labels(song_dir)
+    remaining = [label for label in labels if label.id != label_id]
+    if len(remaining) == len(labels):
+        raise HTTPException(status_code=404, detail="Label not found")
+
+    _write_labels(song_dir, remaining)
+    return Response(status_code=204)
