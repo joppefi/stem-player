@@ -1,6 +1,6 @@
 # Stem Player
 
-Local stem separation app: FastAPI + Demucs backend, React Router (SPA) frontend.
+Local stem separation and player app: FastAPI + Demucs backend, React Router (SPA) frontend, bundled with PyInstaller.
 
 ## Setup
 
@@ -61,6 +61,6 @@ STEM_PLAYER_DATA_DIR=~/Music/StemPlayer .venv/bin/uvicorn app.main:app --port 80
 
 Files persist across restarts, and nothing ever deletes them automatically —
 clean up old song folders yourself if you want to reclaim space. Note that
-job *status* (progress, which stems belong to which job) is only kept in
+job _status_ (progress, which stems belong to which job) is only kept in
 memory and is lost on restart, even though the files themselves remain on
 disk.
