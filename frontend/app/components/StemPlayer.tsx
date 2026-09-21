@@ -566,8 +566,11 @@ export default function StemPlayer({
   }, [analysis?.bpm, analysis?.first_beat, duration]);
 
   const loopRegion = useMemo<LoopRegion | null>(() => {
-    if (loopStart === null || loopEnd === null || duration <= 0) return null;
-    return { start: loopStart / duration, end: loopEnd / duration };
+    if (loopStart === null || duration <= 0) return null;
+    return {
+      start: loopStart / duration,
+      end: loopEnd !== null ? loopEnd / duration : null,
+    };
   }, [loopStart, loopEnd, duration]);
 
   const labelMarkers = useMemo<LabelMarker[]>(() => {

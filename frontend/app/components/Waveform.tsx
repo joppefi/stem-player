@@ -7,7 +7,7 @@ export interface BeatMarker {
 
 export interface LoopRegion {
   start: number; // 0..1
-  end: number; // 0..1
+  end: number | null; // 0..1, or null if only the start has been set yet
 }
 
 export interface LabelMarker {
@@ -86,16 +86,23 @@ export default function Waveform({
         if (ratio !== null) onDoubleClick(ratio);
       }}
     >
-      {/* Active loop region */}
-      {loopRegion && (
-        <div
-          className="absolute inset-y-0 bg-green-500/30 pointer-events-none"
-          style={{
-            left: `${loopRegion.start * 100}%`,
-            width: `${(loopRegion.end - loopRegion.start) * 100}%`,
-          }}
-        />
-      )}
+      {/* Active loop region -- a band once both bounds are set, or just a
+      line at the start while waiting for the end to be set */}
+      {loopRegion &&
+        (loopRegion.end !== null ? (
+          <div
+            className="absolute inset-y-0 bg-green-500/30 pointer-events-none"
+            style={{
+              left: `${loopRegion.start * 100}%`,
+              width: `${(loopRegion.end - loopRegion.start) * 100}%`,
+            }}
+          />
+        ) : (
+          <div
+            className="absolute inset-y-0 w-0.5 bg-green-500 pointer-events-none"
+            style={{ left: `${loopRegion.start * 100}%` }}
+          />
+        ))}
       {/* Named labeled sections */}
       {labels?.map((label) => (
         <div
